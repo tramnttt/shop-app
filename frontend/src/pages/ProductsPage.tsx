@@ -39,7 +39,7 @@ import {
   SortByAlpha
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { useCart } from '../context/CartContext';
+import { useCart } from '../contexts/CartContext';
 import { SelectChangeEvent } from '@mui/material';
 
 // Sample category data
