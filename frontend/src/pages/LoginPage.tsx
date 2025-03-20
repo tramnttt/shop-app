@@ -11,7 +11,7 @@ import {
   CircularProgress 
 } from '@mui/material';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -27,14 +27,26 @@ const LoginPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!email || !password) {
+      setError('Please enter both email and password');
+      return;
+    }
+
     setError('');
     setIsSubmitting(true);
 
     try {
       await login({ email, password });
-      navigate(redirectUrl, { replace: true });
+      // Only navigate after successful login
+      setTimeout(() => {
+        navigate(redirectUrl, { replace: true });
+      }, 100);
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Invalid email or password');
+      console.error('Login error:', err);
+      setError(
+        err?.response?.data?.message || 
+        'Login failed. Please check your credentials and try again.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -65,6 +77,7 @@ const LoginPage: React.FC = () => {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoFocus
+              disabled={isSubmitting}
             />
             
             <TextField
@@ -76,6 +89,7 @@ const LoginPage: React.FC = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              disabled={isSubmitting}
             />
             
             <Button
@@ -85,9 +99,15 @@ const LoginPage: React.FC = () => {
               size="large"
               sx={{ mt: 3, mb: 2 }}
               disabled={isSubmitting}
-              startIcon={isSubmitting && <CircularProgress size={20} color="inherit" />}
             >
-              {isSubmitting ? 'Signing In...' : 'Sign In'}
+              {isSubmitting ? (
+                <>
+                  <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
+                  Signing In...
+                </>
+              ) : (
+                'Sign In'
+              )}
             </Button>
           </form>
           
