@@ -1,0 +1,189 @@
+erDiagram
+    CUSTOMER ||--o{ ORDER : places
+    CUSTOMER ||--o{ WISHLIST : maintains
+    CUSTOMER ||--o{ REVIEW : writes
+    CUSTOMER ||--o{ ADDRESS : has
+    CUSTOMER {
+        INT customer_id PK
+        VARCHAR first_name
+        VARCHAR last_name
+        VARCHAR email
+        VARCHAR password_hash
+        VARCHAR phone
+        DATETIME created_at
+        DATETIME updated_at
+        DATETIME deleted_at
+        DATETIME last_login
+    }
+    
+    PRODUCT ||--o{ ORDER_ITEM : included_in
+    PRODUCT ||--o{ WISHLIST_ITEM : added_to
+    PRODUCT ||--o{ REVIEW : receives
+    PRODUCT ||--o{ PRODUCT_IMAGE : has
+    PRODUCT ||--o{ PRODUCT_CATEGORY : belongs_to
+    PRODUCT {
+        INT product_id PK
+        VARCHAR name
+        TEXT description
+        DECIMAL base_price
+        DECIMAL sale_price
+        VARCHAR sku
+        INT stock_quantity
+        TINYINT is_featured
+        VARCHAR metal_type
+        VARCHAR gemstone_type
+        DECIMAL weight
+        VARCHAR dimensions
+        DATETIME created_at
+        DATETIME updated_at
+        DATETIME deleted_at
+    }
+    
+    CATEGORY ||--o{ PRODUCT_CATEGORY : contains
+    CATEGORY {
+        INT category_id PK
+        VARCHAR name
+        TEXT description
+        INT parent_category_id FK
+        DATETIME created_at
+        DATETIME updated_at
+        DATETIME deleted_at
+    }
+    
+    PRODUCT_CATEGORY {
+        INT product_id PK_FK
+        INT category_id PK_FK
+        DATETIME created_at
+        DATETIME updated_at
+        DATETIME deleted_at
+    }
+    
+    PRODUCT_IMAGE {
+        INT image_id PK
+        INT product_id FK
+        VARCHAR image_url
+        VARCHAR alt_text
+        TINYINT is_primary
+        DATETIME created_at
+        DATETIME updated_at
+        DATETIME deleted_at
+    }
+    
+    ORDER ||--o{ ORDER_ITEM : contains
+    ORDER ||--|| PAYMENT : has
+    ORDER ||--|| SHIPPING : has
+    ORDER {
+        INT order_id PK
+        INT customer_id FK
+        DECIMAL total_amount
+        VARCHAR status
+        INT shipping_address_id FK
+        INT billing_address_id FK
+        DATETIME created_at
+        DATETIME updated_at
+        DATETIME deleted_at
+    }
+    
+    ORDER_ITEM {
+        INT order_item_id PK
+        INT order_id FK
+        INT product_id FK
+        INT quantity
+        DECIMAL unit_price
+        DECIMAL total_price
+        TEXT customization_details
+        DATETIME created_at
+        DATETIME updated_at
+        DATETIME deleted_at
+    }
+    
+    PAYMENT {
+        INT payment_id PK
+        INT order_id FK
+        VARCHAR payment_method
+        VARCHAR transaction_id
+        DECIMAL amount
+        VARCHAR status
+        DATETIME payment_date
+        DATETIME created_at
+        DATETIME updated_at
+        DATETIME deleted_at
+    }
+    
+    SHIPPING {
+        INT shipping_id PK
+        INT order_id FK
+        VARCHAR carrier
+        VARCHAR tracking_number
+        DECIMAL shipping_cost
+        VARCHAR status
+        DATE estimated_delivery
+        DATE actual_delivery
+        DATETIME created_at
+        DATETIME updated_at
+        DATETIME deleted_at
+    }
+    
+    ADDRESS {
+        INT address_id PK
+        INT customer_id FK
+        VARCHAR address_line1
+        VARCHAR address_line2
+        VARCHAR city
+        VARCHAR state
+        VARCHAR postal_code
+        VARCHAR country
+        TINYINT is_default
+        VARCHAR address_type
+        DATETIME created_at
+        DATETIME updated_at
+        DATETIME deleted_at
+    }
+    
+    WISHLIST {
+        INT wishlist_id PK
+        INT customer_id FK
+        VARCHAR name
+        DATETIME created_at
+        DATETIME updated_at
+        DATETIME deleted_at
+    }
+    
+    WISHLIST_ITEM {
+        INT wishlist_item_id PK
+        INT wishlist_id FK
+        INT product_id FK
+        DATETIME created_at
+        DATETIME updated_at
+        DATETIME deleted_at
+    }
+    
+    REVIEW {
+        INT review_id PK
+        INT product_id FK
+        INT customer_id FK
+        TINYINT rating
+        TEXT comment
+        TINYINT is_verified_purchase
+        DATETIME created_at
+        DATETIME updated_at
+        DATETIME deleted_at
+    }
+    
+    DISCOUNT {
+        INT discount_id PK
+        VARCHAR code
+        VARCHAR description
+        DECIMAL amount
+        VARCHAR discount_type
+        INT usage_limit
+        INT times_used
+        TINYINT is_active
+        DATE start_date
+        DATE end_date
+        DATETIME created_at
+        DATETIME updated_at
+        DATETIME deleted_at
+    }
+    
+    ORDER }o--o{ DISCOUNT : applies

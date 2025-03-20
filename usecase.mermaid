@@ -1,0 +1,95 @@
+flowchart TB
+    %% Actors
+    Customer((Customer))
+    Admin((Admin))
+    ShippingPartner((Shipping Partner))
+    PaymentGateway((Payment Gateway))
+    
+    %% Use Cases - Customer Related
+    subgraph Customer Actions
+    uc1[Browse Jewelry]
+    uc2[Search Products]
+    uc3[Filter by Category]
+    uc4[View Product Details]
+    uc5[Add to Cart]
+    uc6[Manage Cart]
+    uc7[Checkout]
+    uc8[Create Account]
+    uc9[Manage Account]
+    uc10[Track Order]
+    uc11[Write Review]
+    uc12[Add to Wishlist]
+    uc13[Apply Discount]
+    uc14[Manage Address]
+    end
+    
+    %% Use Cases - Admin Related
+    subgraph Admin Actions
+    uc20[Manage Products]
+    uc21[Process Orders]
+    uc22[Manage Categories]
+    uc23[Manage Inventory]
+    uc24[Create Discounts]
+    uc25[View Sales Reports]
+    uc26[Manage Customer Accounts]
+    uc27[Moderate Reviews]
+    uc28[Update Order Status]
+    uc29[Process Returns]
+    end
+    
+    %% Use Cases - System Related
+    subgraph System Processes
+    uc30[Process Payment]
+    uc31[Generate Invoice]
+    uc32[Calculate Shipping]
+    uc33[Send Order Confirmation]
+    uc34[Send Shipping Notification]
+    uc35[Update Inventory]
+    uc36[Apply Discount Rules]
+    uc37[Log Customer Actions]
+    end
+    
+    %% Connections - Customer to Use Cases
+    Customer --- uc1
+    Customer --- uc2
+    Customer --- uc3
+    Customer --- uc4
+    Customer --- uc5
+    Customer --- uc6
+    Customer --- uc7
+    Customer --- uc8
+    Customer --- uc9
+    Customer --- uc10
+    Customer --- uc11
+    Customer --- uc12
+    Customer --- uc13
+    Customer --- uc14
+    
+    %% Connections - Admin to Use Cases
+    Admin --- uc20
+    Admin --- uc21
+    Admin --- uc22
+    Admin --- uc23
+    Admin --- uc24
+    Admin --- uc25
+    Admin --- uc26
+    Admin --- uc27
+    Admin --- uc28
+    Admin --- uc29
+    
+    %% External System Connections
+    ShippingPartner --- uc32
+    ShippingPartner --- uc34
+    PaymentGateway --- uc30
+    
+    %% Important Flows and Dependencies
+    uc7 --> uc30
+    uc7 --> uc31
+    uc7 --> uc32
+    uc7 --> uc33
+    uc21 --> uc34
+    uc21 --> uc35
+    uc13 --> uc36
+    uc1 --> uc37
+    uc2 --> uc37
+    uc4 --> uc37

@@ -1,0 +1,29 @@
+create a project that based on given ERD mermaid.
+[Backend] 
+- using NestJS with typescript
+- using jwt to do login and authentication
+- using mysql as database.
+- based on jewelry-ecommerce-erd.mermaid to do the db
+
+
+[Frontend] 
+- using react with typescript
+- using function component.
+- using react hook.
+- axios and react query as calling API from backend
+
+
+[system requirement]
+- System has 3 roles: Admin, buyer, unauthorize user (not logged in user)
+- based on usecase.mermaid.
+- create an application that allow you to selling jewelry
+- CRUD Product by admin
+- CRUD Category by admin
+- There is a page public for user to see the store's products. user can filter on that.
+
+[constrains]
+- Frontend and Backend Must consistence in calling API method (CRUD)
+- don't remove critical code unless it related to the change.
+- don't remove comment
+- you should watch or do from backend first, before doing Frontend.
+- you can install other package outside.
