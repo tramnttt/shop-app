@@ -25,7 +25,8 @@ export class AuthController {
                         id: { type: 'number' },
                         email: { type: 'string' },
                         firstName: { type: 'string' },
-                        lastName: { type: 'string' }
+                        lastName: { type: 'string' },
+                        role: { type: 'string', enum: ['admin', 'customer'] }
                     }
                 }
             }

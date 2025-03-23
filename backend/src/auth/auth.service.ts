@@ -26,7 +26,7 @@ export class AuthService {
         const payload = {
             email: user.email,
             sub: user.customer_id,
-            role: 'customer'
+            role: user.role || 'customer'
         };
 
         // Update last login
@@ -42,6 +42,7 @@ export class AuthService {
                 email: user.email,
                 firstName: user.first_name,
                 lastName: user.last_name,
+                role: user.role || 'customer'
             }
         };
     }
@@ -67,6 +68,7 @@ export class AuthService {
             email: userData.email,
             password_hash: passwordHash,
             phone: userData.phone,
+            role: 'customer',
             created_at: new Date(),
         });
 

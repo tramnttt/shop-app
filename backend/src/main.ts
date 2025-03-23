@@ -3,12 +3,23 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { AdminSeeder } from './database/seeders/admin.seeder';
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
 
     app.enableCors();
     app.useGlobalPipes(new ValidationPipe({ transform: true }));
+    app.setGlobalPrefix('api');
+
+    // Run admin seeder
+    try {
+        const adminSeeder = app.get(AdminSeeder);
+        await adminSeeder.seed();
+        console.log('Admin user seed check completed.');
+    } catch (error) {
+        console.error('Error checking/creating admin user:', error);
+    }
 
     // Swagger configuration
     const config = new DocumentBuilder()

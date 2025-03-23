@@ -1,18 +1,16 @@
 import React from 'react';
-import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
-import { Header } from './components/Header';
-import { Routes, Route } from 'react-router-dom';
-import { Container, Box } from '@mui/material';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { Box, ThemeProvider, CssBaseline } from '@mui/material';
+import { createTheme } from '@mui/material/styles';
+import Header from './components/Header';
 import HomePage from './pages/HomePage';
 import ProductsPage from './pages/ProductsPage';
-import ProductDetailPage from './pages/ProductDetailPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import Navbar from './components/Navbar';
-import Footer from './components/Footer';
-import CategoryManagement from './pages/admin/CategoryManagement';
+import CategoriesPage from './pages/admin/CategoriesPage';
 import { useAuth } from './contexts/AuthContext';
 
+// Create theme
 const theme = createTheme({
     palette: {
         primary: {
@@ -24,28 +22,48 @@ const theme = createTheme({
     },
 });
 
-const App: React.FC = () => {
-    const { user } = useAuth();
-    const isAdmin = user?.role === 'admin';
+// Protected Route component
+const ProtectedRoute: React.FC<{ 
+    children: React.ReactNode;
+    requiredRole?: string;
+}> = ({ children, requiredRole }) => {
+    const { isAuthenticated, user } = useAuth();
 
+    if (!isAuthenticated) {
+        return <Navigate to="/login" />;
+    }
+
+    if (requiredRole && user?.role !== requiredRole) {
+        return <Navigate to="/" />;
+    }
+
+    return <>{children}</>;
+};
+
+const App: React.FC = () => {
     return (
         <ThemeProvider theme={theme}>
             <CssBaseline />
             <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
                 <Header />
-                <Container component="main" sx={{ flexGrow: 1, py: 4 }}>
+                <Box component="main" sx={{ flexGrow: 1 }}>
                     <Routes>
                         <Route path="/" element={<HomePage />} />
                         <Route path="/products" element={<ProductsPage />} />
-                        <Route path="/products/:id" element={<ProductDetailPage />} />
                         <Route path="/login" element={<LoginPage />} />
                         <Route path="/register" element={<RegisterPage />} />
-                        {isAdmin && (
-                            <Route path="/admin/categories" element={<CategoryManagement />} />
-                        )}
+                        
+                        {/* Admin Routes */}
+                        <Route 
+                            path="/admin/categories" 
+                            element={
+                                <ProtectedRoute requiredRole="admin">
+                                    <CategoriesPage />
+                                </ProtectedRoute>
+                            } 
+                        />
                     </Routes>
-                </Container>
-                <Footer />
+                </Box>
             </Box>
         </ThemeProvider>
     );

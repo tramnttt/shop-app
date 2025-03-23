@@ -31,6 +31,7 @@ export class AdminSeeder {
             last_name: 'User',
             email: 'tramnguyen040404@gmail.com',
             password_hash: passwordHash,
+            role: 'admin', // Ensure user has admin role
             created_at: new Date(),
             updated_at: new Date()
         });

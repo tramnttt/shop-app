@@ -1,30 +1,73 @@
-import axios from '../config/axios';
-import { Category, CreateCategoryDto, UpdateCategoryDto } from '../types/category';
+import { axiosInstance } from '../config/axios';
 
-const CATEGORIES_URL = '/categories';
+export interface Category {
+    id: number;
+    name: string;
+    description: string | null;
+    parent_id?: number | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface CreateCategoryDto {
+    name: string;
+    description: string | null;
+    parent_category_id?: number | null;
+}
+
+export interface UpdateCategoryDto {
+    name?: string;
+    description?: string | null;
+    parent_category_id?: number | null;
+}
+
+const handleError = (error: any) => {
+    console.error('Category API Error:', error.response?.data || error.message);
+    throw error;
+};
 
 export const categoryService = {
     getAll: async (): Promise<Category[]> => {
-        const response = await axios.get(CATEGORIES_URL);
-        return response.data;
+        try {
+            const response = await axiosInstance.get<Category[]>('/categories');
+            return response.data;
+        } catch (error) {
+            return handleError(error);
+        }
     },
 
     getById: async (id: number): Promise<Category> => {
-        const response = await axios.get(`${CATEGORIES_URL}/${id}`);
-        return response.data;
+        try {
+            const response = await axiosInstance.get<Category>(`/categories/${id}`);
+            return response.data;
+        } catch (error) {
+            return handleError(error);
+        }
     },
 
     create: async (data: CreateCategoryDto): Promise<Category> => {
-        const response = await axios.post(CATEGORIES_URL, data);
-        return response.data;
+        try {
+            const response = await axiosInstance.post<Category>('/categories', data);
+            return response.data;
+        } catch (error) {
+            return handleError(error);
+        }
     },
 
     update: async (id: number, data: UpdateCategoryDto): Promise<Category> => {
-        const response = await axios.patch(`${CATEGORIES_URL}/${id}`, data);
-        return response.data;
+        try {
+            const response = await axiosInstance.patch<Category>(`/categories/${id}`, data);
+            return response.data;
+        } catch (error) {
+            return handleError(error);
+        }
     },
 
     delete: async (id: number): Promise<void> => {
-        await axios.delete(`${CATEGORIES_URL}/${id}`);
+        try {
+            await axiosInstance.delete(`/categories/${id}`);
+        } catch (error) {
+            handleError(error);
+        }
     }
 }; 

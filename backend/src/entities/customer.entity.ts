@@ -20,6 +20,9 @@ export class Customer {
     @Column({ nullable: true })
     phone: string;
 
+    @Column({ default: 'customer' })
+    role: string;
+
     @CreateDateColumn()
     created_at: Date;
 

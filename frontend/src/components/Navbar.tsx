@@ -16,13 +16,10 @@ import {
 import MenuIcon from '@mui/icons-material/Menu';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-
-const pages = [
-  { name: 'Home', path: '/' },
-  { name: 'Products', path: '/products' },
-];
+import { useAuth } from '../contexts/AuthContext';
 
 const Navbar: React.FC = () => {
+  const { isAuthenticated, user } = useAuth();
   const [anchorElNav, setAnchorElNav] = useState<null | HTMLElement>(null);
   const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
 
@@ -41,6 +38,17 @@ const Navbar: React.FC = () => {
   const handleCloseUserMenu = () => {
     setAnchorElUser(null);
   };
+
+  const isAdmin = user?.role === 'admin';
+
+  const navigationItems = [
+    { label: 'Home', path: '/' },
+    { label: 'Products', path: '/products' },
+    ...(isAdmin ? [
+      { label: 'Categories', path: '/admin/categories' },
+      { label: 'Products Management', path: '/admin/products' }
+    ] : [])
+  ];
 
   return (
     <AppBar position="static">
@@ -93,14 +101,14 @@ const Navbar: React.FC = () => {
                 display: { xs: 'block', md: 'none' },
               }}
             >
-              {pages.map((page) => (
-                <MenuItem key={page.name} onClick={handleCloseNavMenu}>
+              {navigationItems.map((item) => (
+                <MenuItem key={item.path} onClick={handleCloseNavMenu}>
                   <Link
                     component={RouterLink}
-                    to={page.path}
+                    to={item.path}
                     sx={{ textDecoration: 'none', color: 'inherit' }}
                   >
-                    <Typography textAlign="center">{page.name}</Typography>
+                    <Typography textAlign="center">{item.label}</Typography>
                   </Link>
                 </MenuItem>
               ))}
@@ -127,15 +135,15 @@ const Navbar: React.FC = () => {
 
           {/* Desktop menu */}
           <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }}>
-            {pages.map((page) => (
+            {navigationItems.map((item) => (
               <Button
-                key={page.name}
+                key={item.path}
                 component={RouterLink}
-                to={page.path}
+                to={item.path}
                 onClick={handleCloseNavMenu}
                 sx={{ my: 2, color: 'white', display: 'block' }}
               >
-                {page.name}
+                {item.label}
               </Button>
             ))}
           </Box>
@@ -170,12 +178,16 @@ const Navbar: React.FC = () => {
               open={Boolean(anchorElUser)}
               onClose={handleCloseUserMenu}
             >
-              <MenuItem component={RouterLink} to="/login" onClick={handleCloseUserMenu}>
-                <Typography textAlign="center">Login</Typography>
-              </MenuItem>
-              <MenuItem component={RouterLink} to="/register" onClick={handleCloseUserMenu}>
-                <Typography textAlign="center">Register</Typography>
-              </MenuItem>
+              {!isAuthenticated ? (
+                <>
+                  <MenuItem component={RouterLink} to="/login" onClick={handleCloseUserMenu}>
+                    <Typography textAlign="center">Login</Typography>
+                  </MenuItem>
+                  <MenuItem component={RouterLink} to="/register" onClick={handleCloseUserMenu}>
+                    <Typography textAlign="center">Register</Typography>
+                  </MenuItem>
+                </>
+              ) : null}
             </Menu>
           </Box>
         </Toolbar>

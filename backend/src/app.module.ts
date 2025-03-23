@@ -5,6 +5,8 @@ import { databaseConfig } from './config/database.config';
 import { ProductsModule } from './products/products.module';
 import { CategoriesModule } from './categories/categories.module';
 import { AuthModule } from './auth/auth.module';
+import { AdminSeeder } from './database/seeders/admin.seeder';
+import { Customer } from './entities/customer.entity';
 
 @Module({
     imports: [
@@ -13,11 +15,12 @@ import { AuthModule } from './auth/auth.module';
             envFilePath: '.env',
         }),
         TypeOrmModule.forRoot(databaseConfig),
+        TypeOrmModule.forFeature([Customer]),
         ProductsModule,
         CategoriesModule,
         AuthModule,
     ],
     controllers: [],
-    providers: [],
+    providers: [AdminSeeder],
 })
 export class AppModule { } 
