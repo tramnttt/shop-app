@@ -6,6 +6,10 @@
 /backend/dist
 /backend/.env
 /backend/coverage
+/backend/uploads/**
+!/backend/uploads/.gitkeep
+/uploads/**
+!/uploads/.gitkeep
 
 # Frontend specific
 /frontend/build
