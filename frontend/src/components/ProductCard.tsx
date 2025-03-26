@@ -1,30 +1,20 @@
 import React from 'react';
-import { 
-  Card, 
-  CardActionArea, 
-  CardActions, 
-  CardContent, 
-  CardMedia, 
-  Button, 
-  Typography, 
-  Box 
-} from '@mui/material';
-import { AddShoppingCart } from '@mui/icons-material';
+import { Card, CardContent, CardMedia, Typography, Box, Rating, Button, CardActionArea, Chip } from '@mui/material';
+import { ShoppingCart } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
-import { Product } from '../interfaces';
 import { useCart } from '../context/CartContext';
+import { formatImageUrl, getPrimaryImageUrl } from '../utils/imageUtils';
 
 interface ProductCardProps {
-  product: Product;
+  product: any;
+  compact?: boolean;
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
+const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) => {
   const { addToCart } = useCart();
   
-  // Find primary image or use first image or placeholder
-  const primaryImage = product.images?.find(img => img.is_primary)?.image_url ||
-    product.images?.[0]?.image_url ||
-    'https://placehold.co/400x300?text=No+Image';
+  // Use utility function to get formatted image URL
+  const formattedImageUrl = getPrimaryImageUrl(product.images);
   
   // Calculate discount percentage if sale price exists
   const hasDiscount = product.sale_price !== undefined && product.sale_price < product.base_price;
@@ -48,60 +38,92 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             right: 10,
             backgroundColor: 'error.main',
             color: 'white',
+            borderRadius: '4px',
+            padding: '4px 8px',
             fontWeight: 'bold',
-            px: 1,
-            py: 0.5,
-            borderRadius: 1,
-            zIndex: 1,
+            zIndex: 1
           }}
         >
           {discountPercentage}% OFF
         </Box>
       )}
       
-      <CardActionArea component={Link} to={`/products/${product.product_id}`} sx={{ flexGrow: 1 }}>
+      <CardActionArea component={Link} to={`/products/${product.product_id}`}>
         <CardMedia
           component="img"
-          height="200"
-          image={primaryImage}
+          height={compact ? 140 : 200}
+          image={formattedImageUrl}
           alt={product.name}
+          sx={{
+            objectFit: 'contain',
+            bgcolor: 'grey.100',
+            p: 1
+          }}
         />
-        <CardContent>
-          <Typography gutterBottom variant="h6" component="div" noWrap>
+        <CardContent sx={{ flexGrow: 1, pb: compact ? 1 : undefined }}>
+          <Typography gutterBottom variant={compact ? "body1" : "h6"} component="div" noWrap>
             {product.name}
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1, height: '40px', overflow: 'hidden' }}>
-            {product.description.substring(0, 80)}...
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {hasDiscount ? (
-              <>
-                <Typography variant="h6" color="error.main" fontWeight="bold">
-                  ${product.sale_price?.toFixed(2)}
+          
+          {!compact && (
+            <Typography variant="body2" color="text.secondary" sx={{ 
+              mb: 1,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+            }}>
+              {product.description}
+            </Typography>
+          )}
+          
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
+            <Box>
+              {hasDiscount ? (
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Typography variant={compact ? "body1" : "h6"} color="error.main" fontWeight="bold">
+                    ${product.sale_price?.toFixed(2)}
+                  </Typography>
+                  <Typography 
+                    variant="body2" 
+                    color="text.secondary" 
+                    sx={{ ml: 1, textDecoration: 'line-through' }}
+                  >
+                    ${product.base_price?.toFixed(2)}
+                  </Typography>
+                </Box>
+              ) : (
+                <Typography variant={compact ? "body1" : "h6"} fontWeight="bold">
+                  ${product.base_price?.toFixed(2)}
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ textDecoration: 'line-through' }}>
-                  ${product.base_price.toFixed(2)}
-                </Typography>
-              </>
-            ) : (
-              <Typography variant="h6" fontWeight="bold">
-                ${product.base_price.toFixed(2)}
-              </Typography>
+              )}
+            </Box>
+            
+            {!compact && (
+              <Button
+                size="small"
+                variant="contained"
+                color="primary"
+                onClick={handleAddToCart}
+                startIcon={<ShoppingCart />}
+                sx={{ minWidth: 'auto' }}
+              >
+                Add
+              </Button>
             )}
           </Box>
+          
+          {product.stock_quantity <= 0 && (
+            <Chip 
+              label="Out of Stock" 
+              color="error" 
+              size="small" 
+              sx={{ mt: 1 }}
+            />
+          )}
         </CardContent>
       </CardActionArea>
-      <CardActions>
-        <Button 
-          size="small" 
-          color="primary" 
-          startIcon={<AddShoppingCart />}
-          onClick={handleAddToCart}
-          fullWidth
-        >
-          Add to Cart
-        </Button>
-      </CardActions>
     </Card>
   );
 };

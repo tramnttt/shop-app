@@ -8,6 +8,7 @@ import ProductsPage from './pages/ProductsPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import CategoriesPage from './pages/admin/CategoriesPage';
+import AdminProductsPage from './pages/admin/ProductsPage';
 import { useAuth } from './contexts/AuthContext';
 
 // Create theme
@@ -59,6 +60,14 @@ const App: React.FC = () => {
                             element={
                                 <ProtectedRoute requiredRole="admin">
                                     <CategoriesPage />
+                                </ProtectedRoute>
+                            } 
+                        />
+                        <Route 
+                            path="/admin/products" 
+                            element={
+                                <ProtectedRoute requiredRole="admin">
+                                    <AdminProductsPage />
                                 </ProtectedRoute>
                             } 
                         />

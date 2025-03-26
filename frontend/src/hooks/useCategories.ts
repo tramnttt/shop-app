@@ -1,17 +1,24 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { categoryService, CreateCategoryDto, UpdateCategoryDto } from '../services/categoryService';
+import { categoryService, Category, CreateCategoryDto, UpdateCategoryDto } from '../services/categoryService';
 
 export const useCategories = () => {
     return useQuery({
         queryKey: ['categories'],
-        queryFn: categoryService.getAll
+        queryFn: async () => {
+            console.log('DEBUG - Fetching categories');
+            const categories = await categoryService.getAll();
+            console.log('DEBUG - Got categories:', categories);
+            return categories;
+        },
+        staleTime: 60000, // 1 minute
     });
 };
 
 export const useCategory = (id: number) => {
     return useQuery({
-        queryKey: ['categories', id],
-        queryFn: () => categoryService.getById(id)
+        queryKey: ['category', id],
+        queryFn: () => categoryService.getById(id),
+        enabled: !!id,
     });
 };
 
@@ -32,7 +39,8 @@ export const useUpdateCategory = () => {
     return useMutation({
         mutationFn: ({ id, data }: { id: number; data: UpdateCategoryDto }) =>
             categoryService.update(id, data),
-        onSuccess: () => {
+        onSuccess: (updatedCategory) => {
+            queryClient.invalidateQueries({ queryKey: ['category', updatedCategory.id] });
             queryClient.invalidateQueries({ queryKey: ['categories'] });
         }
     });

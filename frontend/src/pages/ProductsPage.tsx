@@ -514,7 +514,11 @@ const ProductsPage: React.FC = () => {
                     <CardMedia
                       component="img"
                       height="200"
-                      image={product.images[0].image_url}
+                      image={product.images && product.images.length > 0 ? 
+                        (product.images[0].image_url.startsWith('/uploads') ? 
+                          `http://localhost:5000${product.images[0].image_url}` : 
+                          product.images[0].image_url) : 
+                        'https://placehold.co/400x300?text=No+Image'}
                       alt={product.name}
                     />
                     <CardContent sx={{ flexGrow: 1 }}>

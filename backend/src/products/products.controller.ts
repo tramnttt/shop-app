@@ -1,9 +1,11 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, ParseIntPipe, DefaultValuePipe, UseInterceptors, UploadedFiles, BadRequestException } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
+import { fileUploadConfig } from '../config/file-upload.config';
 
 @Controller('products')
 export class ProductsController {
@@ -12,43 +14,72 @@ export class ProductsController {
     // Public routes
     @Get()
     async findAll(
-        @Query('categoryId') categoryId?: number,
-        @Query('featured') featured?: boolean,
+        @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+        @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+        @Query('categoryId', new DefaultValuePipe(null)) categoryId?: number,
+        @Query('featured') featured?: string,
         @Query('search') search?: string,
-        @Query('minPrice') minPrice?: number,
-        @Query('maxPrice') maxPrice?: number
+        @Query('minPrice') minPrice?: string,
+        @Query('maxPrice') maxPrice?: string
     ) {
         return this.productsService.findAll({
+            page,
+            limit,
             categoryId,
-            featured,
+            featured: featured,
             search,
-            minPrice,
-            maxPrice
+            minPrice: minPrice ? +minPrice : undefined,
+            maxPrice: maxPrice ? +maxPrice : undefined
         });
     }
 
     @Get(':id')
-    async findOne(@Param('id') id: string) {
-        return this.productsService.findOne(+id);
+    async findOne(@Param('id', ParseIntPipe) id: number) {
+        return this.productsService.findOne(id);
     }
 
     // Admin routes
     @Post()
     @UseGuards(JwtAuthGuard, AdminGuard)
-    async create(@Body() createProductDto: CreateProductDto) {
-        return this.productsService.create(createProductDto);
+    @UseInterceptors(FilesInterceptor('images', 5, fileUploadConfig))
+    async create(
+        @Body() createProductDto: CreateProductDto,
+        @UploadedFiles() files: Express.Multer.File[]
+    ) {
+        if (files && files.length > 5) {
+            throw new BadRequestException('Maximum 5 images allowed');
+        }
+
+        try {
+            return await this.productsService.create(createProductDto, files || []);
+        } catch (error) {
+            throw error;
+        }
     }
 
     @Patch(':id')
     @UseGuards(JwtAuthGuard, AdminGuard)
-    async update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
-        return this.productsService.update(+id, updateProductDto);
+    @UseInterceptors(FilesInterceptor('images', 5, fileUploadConfig))
+    async update(
+        @Param('id', ParseIntPipe) id: number,
+        @Body() updateProductDto: UpdateProductDto,
+        @UploadedFiles() files: Express.Multer.File[]
+    ) {
+        if (files && files.length > 5) {
+            throw new BadRequestException('Maximum 5 images allowed');
+        }
+
+        try {
+            return await this.productsService.update(id, updateProductDto, files || []);
+        } catch (error) {
+            throw error;
+        }
     }
 
     @Delete(':id')
     @UseGuards(JwtAuthGuard, AdminGuard)
-    async remove(@Param('id') id: string) {
-        await this.productsService.remove(+id);
+    async remove(@Param('id', ParseIntPipe) id: number) {
+        await this.productsService.remove(id);
         return { message: 'Product deleted successfully' };
     }
 } 

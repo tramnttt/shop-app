@@ -43,6 +43,17 @@ const ProductDetailPage: React.FC = () => {
     enabled: !!id
   });
 
+  // Helper function to format image URLs with backend base URL
+  const getFormattedImageUrl = (imageUrl: string) => {
+    // If the image URL is relative (starts with /uploads), add the backend URL
+    if (imageUrl && imageUrl.startsWith('/uploads')) {
+      // Use the backend URL - typically the server runs on this port
+      const backendUrl = 'http://localhost:5000';
+      return `${backendUrl}${imageUrl}`;
+    }
+    return imageUrl;
+  };
+
   const handleQuantityChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(event.target.value);
     if (value > 0 && product && value <= product.stock_quantity) {
@@ -75,6 +86,12 @@ const ProductDetailPage: React.FC = () => {
   if (error || !product) {
     return <Alert severity="error">Error loading product details</Alert>;
   }
+
+  const mainImageUrl = product.images[selectedImage]?.image_url || 
+    (product.images.length > 0 ? product.images[0].image_url : 'https://placehold.co/600x400?text=No+Image');
+
+  // Format the main image URL
+  const formattedMainImageUrl = getFormattedImageUrl(mainImageUrl);
 
   return (
     <Box sx={{ py: 4 }}>
@@ -119,7 +136,7 @@ const ProductDetailPage: React.FC = () => {
             }}
           >
             <img 
-              src={product.images[selectedImage]?.image_url || (product.images.length > 0 ? product.images[0].image_url : 'https://placehold.co/600x400?text=No+Image')} 
+              src={formattedMainImageUrl} 
               alt={product.name}
               style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
             />
@@ -139,7 +156,7 @@ const ProductDetailPage: React.FC = () => {
                   }}
                 >
                   <img
-                    src={image.image_url}
+                    src={getFormattedImageUrl(image.image_url)}
                     alt={image.alt_text || product.name}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
