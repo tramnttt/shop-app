@@ -41,107 +41,10 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { useCart } from '../contexts/CartContext';
 import { SelectChangeEvent } from '@mui/material';
-
-// Sample category data
-const categories = [
-  { id: 1, name: 'Rings' },
-  { id: 2, name: 'Necklaces' },
-  { id: 3, name: 'Earrings' },
-  { id: 4, name: 'Bracelets' },
-  { id: 5, name: 'Watches' }
-];
-
-// Mock product data
-const mockProducts = [
-  {
-    id: 1,
-    name: 'Diamond Engagement Ring',
-    description: 'Beautiful 1 carat diamond ring set in 14k white gold',
-    base_price: 2499.99,
-    sale_price: 1999.99,
-    images: [{ image_url: 'https://placehold.co/400x300?text=Diamond+Ring' }],
-    categories: [{ category_id: 1, name: 'Rings' }],
-    rating: 4.8,
-    reviews: 24
-  },
-  {
-    id: 2,
-    name: 'Pearl Necklace',
-    description: 'Elegant pearl necklace with sterling silver clasp',
-    base_price: 899.99,
-    sale_price: null,
-    images: [{ image_url: 'https://placehold.co/400x300?text=Pearl+Necklace' }],
-    categories: [{ category_id: 2, name: 'Necklaces' }],
-    rating: 4.5,
-    reviews: 16
-  },
-  {
-    id: 3,
-    name: 'Gold Hoop Earrings',
-    description: 'Classic 14k gold hoop earrings',
-    base_price: 399.99,
-    sale_price: 349.99,
-    images: [{ image_url: 'https://placehold.co/400x300?text=Gold+Earrings' }],
-    categories: [{ category_id: 3, name: 'Earrings' }],
-    rating: 4.7,
-    reviews: 32
-  },
-  {
-    id: 4,
-    name: 'Silver Tennis Bracelet',
-    description: 'Elegant silver bracelet with cubic zirconia',
-    base_price: 599.99,
-    sale_price: null,
-    images: [{ image_url: 'https://placehold.co/400x300?text=Tennis+Bracelet' }],
-    categories: [{ category_id: 4, name: 'Bracelets' }],
-    rating: 4.6,
-    reviews: 18
-  },
-  {
-    id: 5,
-    name: 'Luxury Watch',
-    description: 'Precision timepiece with leather band',
-    base_price: 3999.99,
-    sale_price: 3499.99,
-    images: [{ image_url: 'https://placehold.co/400x300?text=Luxury+Watch' }],
-    categories: [{ category_id: 5, name: 'Watches' }],
-    rating: 4.9,
-    reviews: 42
-  },
-  {
-    id: 6,
-    name: 'Sapphire Ring',
-    description: 'Beautiful blue sapphire surrounded by diamonds',
-    base_price: 1899.99,
-    sale_price: null,
-    images: [{ image_url: 'https://placehold.co/400x300?text=Sapphire+Ring' }],
-    categories: [{ category_id: 1, name: 'Rings' }],
-    rating: 4.7,
-    reviews: 14
-  },
-  {
-    id: 7,
-    name: 'Diamond Pendant',
-    description: 'Stunning diamond pendant on 18k gold chain',
-    base_price: 1299.99,
-    sale_price: 999.99,
-    images: [{ image_url: 'https://placehold.co/400x300?text=Diamond+Pendant' }],
-    categories: [{ category_id: 2, name: 'Necklaces' }],
-    rating: 4.8,
-    reviews: 26
-  },
-  {
-    id: 8,
-    name: 'Ruby Stud Earrings',
-    description: 'Beautiful ruby studs set in 14k gold',
-    base_price: 799.99,
-    sale_price: null,
-    images: [{ image_url: 'https://placehold.co/400x300?text=Ruby+Earrings' }],
-    categories: [{ category_id: 3, name: 'Earrings' }],
-    rating: 4.6,
-    reviews: 22
-  }
-];
+import { useProducts } from '../hooks/useProducts';
+import { useCategories } from '../hooks/useCategories';
+import { formatImageUrl } from '../utils/imageUtils';
+import ProductCard from '../components/ProductCard';
 
 const ProductsPage: React.FC = () => {
   const theme = useTheme();
@@ -157,9 +60,28 @@ const ProductsPage: React.FC = () => {
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 5000]);
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
-  
   const pageSize = 6; // Number of products per page
+  
+  // Fetch categories from API
+  const { 
+    data: categoriesData = [], 
+    isLoading: categoriesLoading 
+  } = useCategories();
+  
+  // Fetch products from API with filters
+  const {
+    data: productsData,
+    isLoading: productsLoading,
+    isError: productsError,
+    refetch: refetchProducts
+  } = useProducts({
+    page,
+    limit: pageSize,
+    search: searchQuery || undefined,
+    categoryId: selectedCategory || undefined,
+    minPrice: priceRange[0] > 0 ? priceRange[0] : undefined,
+    maxPrice: priceRange[1] < 5000 ? priceRange[1] : undefined
+  });
   
   // Get query params from URL
   useEffect(() => {
@@ -177,57 +99,35 @@ const ProductsPage: React.FC = () => {
   
   // Update URL with current filters
   useEffect(() => {
+    const searchParams = new URLSearchParams();
+    if (page > 1) searchParams.set('page', page.toString());
+    if (searchQuery) searchParams.set('search', searchQuery);
+    if (selectedCategory) searchParams.set('category', selectedCategory.toString());
+    if (sortBy && sortBy !== 'newest') searchParams.set('sort', sortBy);
+    
     navigate({
       pathname: location.pathname,
-      search: `?page=${page}${searchQuery ? `&search=${searchQuery}` : ''}${selectedCategory ? `&category=${selectedCategory}` : ''}${sortBy ? `&sort=${sortBy}` : ''}`
+      search: searchParams.toString() ? `?${searchParams.toString()}` : ''
     }, { replace: true });
   }, [page, searchQuery, selectedCategory, sortBy, navigate, location.pathname]);
   
-  // Filter products based on current filters
-  const filteredProducts = mockProducts.filter(product => {
-    // Search filter
-    const matchesSearch = !searchQuery || 
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      product.description.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    // Category filter
-    const matchesCategory = !selectedCategory || 
-      product.categories.some(cat => cat.category_id === selectedCategory);
-    
-    // Price filter
-    const price = product.sale_price || product.base_price;
-    const matchesPrice = price >= priceRange[0] && price <= priceRange[1];
-    
-    return matchesSearch && matchesCategory && matchesPrice;
-  });
-  
-  // Sort products
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
+  // Sort products (client-side sorting, as server might not support all sort options)
+  const sortedProducts = productsData?.products ? [...productsData.products].sort((a, b) => {
     switch (sortBy) {
       case 'price_low':
         return (a.sale_price || a.base_price) - (b.sale_price || b.base_price);
       case 'price_high':
         return (b.sale_price || b.base_price) - (a.sale_price || a.base_price);
-      case 'rating':
-        return b.rating - a.rating;
       case 'name_asc':
         return a.name.localeCompare(b.name);
       case 'name_desc':
         return b.name.localeCompare(a.name);
       case 'newest':
       default:
-        return b.id - a.id;
+        // Default to server-provided order, which is usually newest first
+        return 0;
     }
-  });
-  
-  // Paginate products
-  const paginatedProducts = sortedProducts.slice(
-    (page - 1) * pageSize,
-    page * pageSize
-  );
-  
-  // Total pages for pagination
-  const totalPages = Math.ceil(sortedProducts.length / pageSize);
+  }) : [];
   
   const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
     setPage(value);
@@ -237,6 +137,7 @@ const ProductsPage: React.FC = () => {
   const handleSearchSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     setPage(1);
+    refetchProducts();
   };
   
   const handleCategoryChange = (categoryId: number | null) => {
@@ -255,6 +156,7 @@ const ProductsPage: React.FC = () => {
   
   const handlePriceRangeChangeCommitted = () => {
     setPage(1);
+    refetchProducts();
   };
   
   const toggleFilters = () => {
@@ -267,10 +169,7 @@ const ProductsPage: React.FC = () => {
     setSortBy('newest');
     setPriceRange([0, 5000]);
     setPage(1);
-  };
-  
-  const handleProductClick = (productId: number) => {
-    navigate(`/products/${productId}`);
+    refetchProducts();
   };
   
   const handleAddToCart = (product: any, event: React.MouseEvent) => {
@@ -299,21 +198,27 @@ const ProductsPage: React.FC = () => {
           Categories
         </Typography>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          {categories.map(category => (
-            <Button
-              key={category.id}
-              variant={selectedCategory === category.id ? 'contained' : 'text'}
-              size="small"
-              onClick={() => handleCategoryChange(selectedCategory === category.id ? null : category.id)}
-              sx={{ 
-                justifyContent: 'flex-start',
-                textTransform: 'none',
-                px: 1
-              }}
-            >
-              {category.name}
-            </Button>
-          ))}
+          {categoriesLoading ? (
+            <CircularProgress size={24} sx={{ alignSelf: 'center', my: 2 }} />
+          ) : categoriesData.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">No categories found</Typography>
+          ) : (
+            categoriesData.map(category => (
+              <Button
+                key={category.id}
+                variant={selectedCategory === category.id ? 'contained' : 'text'}
+                size="small"
+                onClick={() => handleCategoryChange(selectedCategory === category.id ? null : category.id)}
+                sx={{ 
+                  justifyContent: 'flex-start',
+                  textTransform: 'none',
+                  px: 1
+                }}
+              >
+                {category.name}
+              </Button>
+            ))
+          )}
         </Box>
       </Box>
       
@@ -434,7 +339,6 @@ const ProductsPage: React.FC = () => {
             <MenuItem value="newest">Newest</MenuItem>
             <MenuItem value="price_low">Price: Low to High</MenuItem>
             <MenuItem value="price_high">Price: High to Low</MenuItem>
-            <MenuItem value="rating">Top Rated</MenuItem>
             <MenuItem value="name_asc">Name: A to Z</MenuItem>
             <MenuItem value="name_desc">Name: Z to A</MenuItem>
           </Select>
@@ -443,7 +347,9 @@ const ProductsPage: React.FC = () => {
         <Box sx={{ flexGrow: 1 }} />
         
         <Typography variant="body2" color="text.secondary">
-          Showing {paginatedProducts.length} of {filteredProducts.length} products
+          {productsData ? 
+            `Showing ${sortedProducts.length} of ${productsData.totalCount} products` : 
+            'Loading products...'}
         </Typography>
       </Box>
       
@@ -471,130 +377,41 @@ const ProductsPage: React.FC = () => {
         
         {/* Products Grid */}
         <Grid item xs={12} md={9}>
-          {loading ? (
+          {productsLoading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
               <CircularProgress />
             </Box>
-          ) : paginatedProducts.length === 0 ? (
+          ) : productsError ? (
+            <Alert 
+              severity="error" 
+              sx={{ mb: 2 }}
+              action={
+                <Button color="inherit" size="small" onClick={() => refetchProducts()}>
+                  Try Again
+                </Button>
+              }
+            >
+              Error loading products. Please try again.
+            </Alert>
+          ) : sortedProducts.length === 0 ? (
             <Alert severity="info" sx={{ mb: 2 }}>
               No products found matching your criteria. Try adjusting your filters.
             </Alert>
           ) : (
             <Grid container spacing={2}>
-              {paginatedProducts.map(product => (
-                <Grid item key={product.id} xs={12} sm={6} md={4}>
-                  <Card 
-                    sx={{ 
-                      height: '100%', 
-                      display: 'flex', 
-                      flexDirection: 'column',
-                      cursor: 'pointer',
-                      transition: 'transform 0.2s',
-                      '&:hover': {
-                        transform: 'translateY(-4px)',
-                        boxShadow: 4
-                      }
-                    }}
-                    onClick={() => handleProductClick(product.id)}
-                  >
-                    {product.sale_price && (
-                      <Chip 
-                        label={`${Math.round((1 - product.sale_price / product.base_price) * 100)}% OFF`}
-                        color="primary"
-                        size="small"
-                        sx={{ 
-                          position: 'absolute', 
-                          top: 8, 
-                          left: 8, 
-                          zIndex: 1,
-                          fontWeight: 'bold'
-                        }}
-                      />
-                    )}
-                    <CardMedia
-                      component="img"
-                      height="200"
-                      image={product.images && product.images.length > 0 ? 
-                        (product.images[0].image_url.startsWith('/uploads') ? 
-                          `http://localhost:5000${product.images[0].image_url}` : 
-                          product.images[0].image_url) : 
-                        'https://placehold.co/400x300?text=No+Image'}
-                      alt={product.name}
-                    />
-                    <CardContent sx={{ flexGrow: 1 }}>
-                      <Typography gutterBottom variant="h6" component="h2" noWrap>
-                        {product.name}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        mb: 1
-                      }}>
-                        {product.description}
-                      </Typography>
-                      
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                        {[...Array(5)].map((_, i) => (
-                          i < Math.floor(product.rating) ? 
-                            <Star key={i} fontSize="small" color="primary" /> :
-                            i < product.rating ?
-                              <Star key={i} fontSize="small" color="primary" sx={{ opacity: 0.5 }} /> :
-                              <StarBorder key={i} fontSize="small" color="primary" />
-                        ))}
-                        <Typography variant="body2" color="text.secondary" sx={{ ml: 0.5 }}>
-                          ({product.reviews})
-                        </Typography>
-                      </Box>
-                      
-                      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-                        {product.sale_price ? (
-                          <>
-                            <Typography variant="h6" color="primary" fontWeight="bold">
-                              ${product.sale_price.toFixed(2)}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ textDecoration: 'line-through' }}>
-                              ${product.base_price.toFixed(2)}
-                            </Typography>
-                          </>
-                        ) : (
-                          <Typography variant="h6" color="primary" fontWeight="bold">
-                            ${product.base_price.toFixed(2)}
-                          </Typography>
-                        )}
-                      </Box>
-                    </CardContent>
-                    <CardActions sx={{ justifyContent: 'space-between' }}>
-                      <Button 
-                        size="small" 
-                        onClick={(e) => e.stopPropagation()}
-                        component={Link}
-                        to={`/products/${product.id}`}
-                      >
-                        View Details
-                      </Button>
-                      <Button 
-                        size="small" 
-                        color="primary" 
-                        startIcon={<ShoppingCart />}
-                        onClick={(e) => handleAddToCart(product, e)}
-                      >
-                        Add to Cart
-                      </Button>
-                    </CardActions>
-                  </Card>
+              {sortedProducts.map(product => (
+                <Grid item key={product.product_id} xs={12} sm={6} md={4}>
+                  <ProductCard product={product} />
                 </Grid>
               ))}
             </Grid>
           )}
           
-          {totalPages > 1 && (
+          {productsData && productsData.totalPages > 1 && (
             <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
               <Pagination 
-                count={totalPages} 
-                page={page} 
+                count={productsData.totalPages} 
+                page={productsData.currentPage} 
                 onChange={handlePageChange} 
                 color="primary"
                 showFirstButton

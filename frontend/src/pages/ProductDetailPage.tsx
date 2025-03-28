@@ -28,35 +28,99 @@ import {
   NavigateNext as NavigateNextIcon,
   Home as HomeIcon
 } from '@mui/icons-material';
-import { productsAPI } from '../services/api';
-import { useCart } from '../context/CartContext';
+import { useCart } from '../contexts/CartContext';
+import { productService } from '../services/productService';
+import { formatImageUrl } from '../utils/imageUtils';
+import { useProduct } from '../hooks/useProducts';
+
+// Utility function to format price safely
+const formatPrice = (price: number | null | undefined): string => {
+  if (typeof price !== 'number' || isNaN(price)) {
+    return '0.00';
+  }
+  return price.toFixed(2);
+};
+
+// Utility function to calculate discount percentage safely
+const calculateDiscountPercentage = (basePrice: number | null | undefined, salePrice: number | null | undefined): number => {
+  if (typeof basePrice !== 'number' || typeof salePrice !== 'number' || basePrice <= 0) {
+    return 0;
+  }
+  return Math.round(((basePrice - salePrice) / basePrice) * 100);
+};
+
+// Utility function to get image URL safely
+const getSafeImageUrl = (imageUrl: string | undefined): string => {
+  if (!imageUrl) {
+    return 'https://placehold.co/600x400?text=No+Image';
+  }
+  return formatImageUrl(imageUrl);
+};
+
+// Utility to safely check stock quantity
+const hasStock = (product: any): boolean => {
+  return typeof product.stock_quantity === 'number' && product.stock_quantity > 0;
+};
+
+const getLowStockMessage = (product: any): string | null => {
+  if (typeof product.stock_quantity === 'number' && product.stock_quantity > 0 && product.stock_quantity < 10) {
+    return ` (Only ${product.stock_quantity} left)`;
+  }
+  return null;
+};
+
+// Define types for Product data
+interface ProductCategory {
+  category_id: number;
+  name: string;
+}
+
+interface ProductImage {
+  image_id?: number;
+  image_url: string;
+  alt_text?: string;
+  is_primary?: boolean;
+}
+
+// Safely get categories
+const getProductCategories = (product: any): ProductCategory[] => {
+  if (!product.categories) return [];
+  return product.categories;
+};
+
+// Utility function to safely check if a property exists and has a value
+const hasPropertyValue = (product: any, property: string): boolean => {
+  return product && 
+    property in product && 
+    product[property] !== null && 
+    product[property] !== undefined &&
+    product[property] !== '';
+};
+
+// Get product images safely
+const getProductImages = (product: any): ProductImage[] => {
+  if (!product || !product.images || !Array.isArray(product.images)) return [];
+  return product.images;
+};
 
 const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { addToCart } = useCart();
   const [quantity, setQuantity] = useState(1);
-  const [selectedImage, setSelectedImage] = useState(0);
-
-  const { data: product, isLoading, error } = useQuery({
-    queryKey: ['product', id],
-    queryFn: () => id ? productsAPI.getOne(parseInt(id)) : Promise.reject('No product ID'),
-    enabled: !!id
-  });
-
-  // Helper function to format image URLs with backend base URL
-  const getFormattedImageUrl = (imageUrl: string) => {
-    // If the image URL is relative (starts with /uploads), add the backend URL
-    if (imageUrl && imageUrl.startsWith('/uploads')) {
-      // Use the backend URL - typically the server runs on this port
-      const backendUrl = 'http://localhost:5000';
-      return `${backendUrl}${imageUrl}`;
-    }
-    return imageUrl;
-  };
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  
+  // Use the useProduct hook to fetch product data
+  const { 
+    data: product, 
+    isLoading, 
+    error, 
+    isError,
+    refetch
+  } = useProduct(id ? parseInt(id) : 0);
 
   const handleQuantityChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(event.target.value);
-    if (value > 0 && product && value <= product.stock_quantity) {
+    if (value > 0 && product && hasStock(product) && value <= product.stock_quantity) {
       setQuantity(value);
     }
   };
@@ -69,12 +133,16 @@ const ProductDetailPage: React.FC = () => {
 
   // Set first or primary image as selected when product is loaded
   React.useEffect(() => {
-    if (product && product.images && product.images.length > 0) {
-      const primaryImage = product.images.find(img => img.is_primary);
-      setSelectedImage(primaryImage?.image_id || 0);
+    if (product) {
+      const images = getProductImages(product);
+      if (images.length > 0) {
+        const primaryIndex = images.findIndex(img => img.is_primary);
+        setSelectedImageIndex(primaryIndex !== -1 ? primaryIndex : 0);
+      }
     }
   }, [product]);
 
+  // Show loading indicator
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>
@@ -83,15 +151,48 @@ const ProductDetailPage: React.FC = () => {
     );
   }
 
-  if (error || !product) {
-    return <Alert severity="error">Error loading product details</Alert>;
+  // Show error message
+  if (isError || !product) {
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : typeof error === 'string' 
+        ? error 
+        : 'Failed to load product';
+
+    return (
+      <Alert 
+        severity="error" 
+        sx={{ my: 4 }}
+        action={
+          <Button color="inherit" component={RouterLink} to="/products">
+            Back to Products
+          </Button>
+        }
+      >
+        {isError ? `Error: ${errorMessage}` : 'Product not found or has been removed.'}
+        {isError && (
+          <Button 
+            size="small" 
+            sx={{ ml: 2 }} 
+            onClick={() => refetch()}
+          >
+            Try Again
+          </Button>
+        )}
+      </Alert>
+    );
   }
 
-  const mainImageUrl = product.images[selectedImage]?.image_url || 
-    (product.images.length > 0 ? product.images[0].image_url : 'https://placehold.co/600x400?text=No+Image');
+  // Get the main image URL
+  const images = getProductImages(product);
+  const mainImageUrl = images.length > 0 
+    ? (selectedImageIndex < images.length 
+        ? images[selectedImageIndex].image_url 
+        : images[0].image_url)
+    : 'https://placehold.co/600x400?text=No+Image';
 
   // Format the main image URL
-  const formattedMainImageUrl = getFormattedImageUrl(mainImageUrl);
+  const formattedMainImageUrl = getSafeImageUrl(mainImageUrl);
 
   return (
     <Box sx={{ py: 4 }}>
@@ -142,21 +243,21 @@ const ProductDetailPage: React.FC = () => {
             />
           </Paper>
 
-          {product.images.length > 1 && (
+          {images.length > 1 && (
             <ImageList cols={4} rowHeight={80} gap={8}>
-              {product.images.map((image, index) => (
+              {images.map((image, index) => (
                 <ImageListItem 
-                  key={image.image_id}
-                  onClick={() => setSelectedImage(index)}
+                  key={image.image_id || index}
+                  onClick={() => setSelectedImageIndex(index)}
                   sx={{ 
                     cursor: 'pointer', 
-                    border: selectedImage === index ? '2px solid' : 'none',
+                    border: selectedImageIndex === index ? '2px solid' : 'none',
                     borderColor: 'primary.main',
                     borderRadius: 1
                   }}
                 >
                   <img
-                    src={getFormattedImageUrl(image.image_url)}
+                    src={getSafeImageUrl(image.image_url)}
                     alt={image.alt_text || product.name}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
@@ -173,46 +274,52 @@ const ProductDetailPage: React.FC = () => {
           </Typography>
 
           <Box sx={{ mb: 3 }}>
-            {product.categories && product.categories.map(category => (
-              <Chip
-                key={category.category_id}
-                label={category.name}
-                size="small"
-                variant="outlined"
-                sx={{ mr: 1 }}
-              />
-            ))}
+            {getProductCategories(product).length > 0 ? (
+              getProductCategories(product).map((category: ProductCategory) => (
+                <Chip
+                  key={category.category_id}
+                  label={category.name}
+                  size="small"
+                  variant="outlined"
+                  sx={{ mr: 1 }}
+                />
+              ))
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                No categories
+              </Typography>
+            )}
           </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, my: 2 }}>
-            {product.sale_price !== undefined && product.sale_price < product.base_price ? (
+            {typeof product.sale_price === 'number' && product.sale_price < product.base_price ? (
               <>
                 <Typography variant="h4" color="error" fontWeight="bold">
-                  ${product.sale_price.toFixed(2)}
+                  ${formatPrice(product.sale_price)}
                 </Typography>
                 <Typography 
                   variant="h6" 
                   color="text.secondary" 
                   sx={{ textDecoration: 'line-through' }}
                 >
-                  ${product.base_price.toFixed(2)}
+                  ${formatPrice(product.base_price)}
                 </Typography>
                 <Chip 
-                  label={`${Math.round(((product.base_price - product.sale_price) / product.base_price) * 100)}% OFF`} 
+                  label={`${calculateDiscountPercentage(product.base_price, product.sale_price)}% OFF`} 
                   color="error" 
                   size="small" 
                 />
               </>
             ) : (
               <Typography variant="h4" fontWeight="bold">
-                ${product.base_price.toFixed(2)}
+                ${formatPrice(product.base_price)}
               </Typography>
             )}
           </Box>
 
-          <Typography variant="subtitle1" color={product.stock_quantity > 0 ? 'success.main' : 'error.main'} sx={{ mb: 2 }}>
-            {product.stock_quantity > 0 ? 'In Stock' : 'Out of Stock'}
-            {product.stock_quantity > 0 && product.stock_quantity < 10 && ` (Only ${product.stock_quantity} left)`}
+          <Typography variant="subtitle1" color={hasStock(product) ? 'success.main' : 'error.main'} sx={{ mb: 2 }}>
+            {hasStock(product) ? 'In Stock' : 'Out of Stock'}
+            {getLowStockMessage(product)}
           </Typography>
 
           <Divider sx={{ my: 3 }} />
@@ -229,9 +336,9 @@ const ProductDetailPage: React.FC = () => {
                   <TableCell component="th" scope="row" sx={{ bgcolor: 'grey.100', width: '40%' }}>
                     SKU
                   </TableCell>
-                  <TableCell>{product.sku}</TableCell>
+                  <TableCell>{product.sku || 'N/A'}</TableCell>
                 </TableRow>
-                {product.metal_type && (
+                {hasPropertyValue(product, 'metal_type') && (
                   <TableRow>
                     <TableCell component="th" scope="row" sx={{ bgcolor: 'grey.100' }}>
                       Metal Type
@@ -239,7 +346,7 @@ const ProductDetailPage: React.FC = () => {
                     <TableCell>{product.metal_type}</TableCell>
                   </TableRow>
                 )}
-                {product.gemstone_type && (
+                {hasPropertyValue(product, 'gemstone_type') && (
                   <TableRow>
                     <TableCell component="th" scope="row" sx={{ bgcolor: 'grey.100' }}>
                       Gemstone
@@ -247,7 +354,7 @@ const ProductDetailPage: React.FC = () => {
                     <TableCell>{product.gemstone_type}</TableCell>
                   </TableRow>
                 )}
-                {product.weight && (
+                {hasPropertyValue(product, 'weight') && (
                   <TableRow>
                     <TableCell component="th" scope="row" sx={{ bgcolor: 'grey.100' }}>
                       Weight
@@ -255,7 +362,7 @@ const ProductDetailPage: React.FC = () => {
                     <TableCell>{product.weight} g</TableCell>
                   </TableRow>
                 )}
-                {product.dimensions && (
+                {hasPropertyValue(product, 'dimensions') && (
                   <TableRow>
                     <TableCell component="th" scope="row" sx={{ bgcolor: 'grey.100' }}>
                       Dimensions
@@ -274,17 +381,17 @@ const ProductDetailPage: React.FC = () => {
               type="number"
               value={quantity}
               onChange={handleQuantityChange}
-              InputProps={{ inputProps: { min: 1, max: product.stock_quantity } }}
+              InputProps={{ inputProps: { min: 1, max: hasStock(product) ? product.stock_quantity : 1 } }}
               size="small"
               sx={{ width: 100 }}
-              disabled={product.stock_quantity === 0}
+              disabled={!hasStock(product)}
             />
             <Button
               variant="contained"
               startIcon={<AddShoppingCart />}
               size="large"
               onClick={handleAddToCart}
-              disabled={product.stock_quantity === 0}
+              disabled={!hasStock(product)}
               sx={{ px: 4 }}
             >
               Add to Cart

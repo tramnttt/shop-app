@@ -5,6 +5,7 @@ import { createTheme } from '@mui/material/styles';
 import Header from './components/Header';
 import HomePage from './pages/HomePage';
 import ProductsPage from './pages/ProductsPage';
+import ProductDetailPage from './pages/ProductDetailPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import CategoriesPage from './pages/admin/CategoriesPage';
@@ -51,6 +52,7 @@ const App: React.FC = () => {
                     <Routes>
                         <Route path="/" element={<HomePage />} />
                         <Route path="/products" element={<ProductsPage />} />
+                        <Route path="/products/:id" element={<ProductDetailPage />} />
                         <Route path="/login" element={<LoginPage />} />
                         <Route path="/register" element={<RegisterPage />} />
                         

@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardMedia, Typography, Box, Rating, Button, CardActionArea, Chip } from '@mui/material';
 import { ShoppingCart } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
-import { useCart } from '../context/CartContext';
+import { useCart } from '../contexts/CartContext';
 import { formatImageUrl, getPrimaryImageUrl } from '../utils/imageUtils';
 
 interface ProductCardProps {
@@ -16,10 +16,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) =
   // Use utility function to get formatted image URL
   const formattedImageUrl = getPrimaryImageUrl(product.images);
   
-  // Calculate discount percentage if sale price exists
-  const hasDiscount = product.sale_price !== undefined && product.sale_price < product.base_price;
+  // Calculate discount percentage if sale price exists and both prices are valid numbers
+  const hasDiscount = typeof product.sale_price === 'number' && 
+                      typeof product.base_price === 'number' && 
+                      product.sale_price < product.base_price;
+  
   const discountPercentage = hasDiscount
-    ? Math.round(((product.base_price - product.sale_price!) / product.base_price) * 100)
+    ? Math.round(((product.base_price - product.sale_price) / product.base_price) * 100)
     : 0;
 
   const handleAddToCart = (e: React.MouseEvent) => {
@@ -83,19 +86,19 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) =
               {hasDiscount ? (
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <Typography variant={compact ? "body1" : "h6"} color="error.main" fontWeight="bold">
-                    ${product.sale_price?.toFixed(2)}
+                    ${typeof product.sale_price === 'number' ? product.sale_price.toFixed(2) : '0.00'}
                   </Typography>
                   <Typography 
                     variant="body2" 
                     color="text.secondary" 
                     sx={{ ml: 1, textDecoration: 'line-through' }}
                   >
-                    ${product.base_price?.toFixed(2)}
+                    ${typeof product.base_price === 'number' ? product.base_price.toFixed(2) : '0.00'}
                   </Typography>
                 </Box>
               ) : (
                 <Typography variant={compact ? "body1" : "h6"} fontWeight="bold">
-                  ${product.base_price?.toFixed(2)}
+                  ${typeof product.base_price === 'number' ? product.base_price.toFixed(2) : '0.00'}
                 </Typography>
               )}
             </Box>

@@ -16,6 +16,10 @@ export interface Product {
     sale_price?: number | null;
     stock_quantity: number;
     is_featured: boolean;
+    metal_type?: string | null;
+    gemstone_type?: string | null;
+    weight?: number | null;
+    dimensions?: string | null;
     images: ProductImage[];
     categories: Array<{
         category_id: number;
