@@ -25,22 +25,28 @@ import {
     Alert,
     SelectChangeEvent,
     Chip,
-    Tooltip
+    Tooltip,
+    Card,
+    CardMedia
 } from '@mui/material';
 import { 
     Edit as EditIcon, 
     Delete as DeleteIcon, 
     Add as AddIcon,
-    Refresh as RefreshIcon 
+    Refresh as RefreshIcon,
+    Image as ImageIcon
 } from '@mui/icons-material';
 import { useCategories, useCreateCategory, useUpdateCategory, useDeleteCategory } from '../../hooks/useCategories';
 import { Category, CreateCategoryDto, UpdateCategoryDto } from '../../services/categoryService';
+import { formatImageUrl } from '../../utils/imageUtils';
 
 const CategoryManagement: React.FC = () => {
     const [openDialog, setOpenDialog] = useState(false);
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-    const [formData, setFormData] = useState<CreateCategoryDto>({ name: '', description: null });
+    const [formData, setFormData] = useState<CreateCategoryDto>({ name: '', description: null, image_url: null });
     const [error, setError] = useState<string>('');
+    const [selectedImage, setSelectedImage] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
 
     const { data: categories = [], isLoading, refetch } = useCategories();
     const createCategory = useCreateCategory();
@@ -49,7 +55,9 @@ const CategoryManagement: React.FC = () => {
 
     const handleOpenDialog = () => {
         setEditingCategory(null);
-        setFormData({ name: '', description: null, parent_category_id: null });
+        setFormData({ name: '', description: null, image_url: null });
+        setSelectedImage(null);
+        setImagePreview(null);
         setOpenDialog(true);
         setError('');
     };
@@ -57,7 +65,9 @@ const CategoryManagement: React.FC = () => {
     const handleCloseDialog = () => {
         setOpenDialog(false);
         setEditingCategory(null);
-        setFormData({ name: '', description: null, parent_category_id: null });
+        setFormData({ name: '', description: null, image_url: null });
+        setSelectedImage(null);
+        setImagePreview(null);
         setError('');
     };
 
@@ -66,8 +76,10 @@ const CategoryManagement: React.FC = () => {
         setFormData({ 
             name: category.name, 
             description: category.description,
-            parent_category_id: category.parent_id
+            parent_category_id: category.parent_id,
+            image_url: category.image_url
         });
+        setImagePreview(category.image_url || null);
         setOpenDialog(true);
         setError('');
     };
@@ -78,6 +90,18 @@ const CategoryManagement: React.FC = () => {
             ...formData,
             parent_category_id: parentId
         });
+    };
+
+    const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            setSelectedImage(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImagePreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -99,7 +123,8 @@ const CategoryManagement: React.FC = () => {
                 const updateData: UpdateCategoryDto = {
                     name: formData.name.trim(),
                     description: formData.description?.trim() || null,
-                    parent_category_id: formData.parent_category_id
+                    parent_category_id: formData.parent_category_id,
+                    image_url: imagePreview
                 };
                 
                 await updateCategory.mutateAsync({
@@ -110,7 +135,8 @@ const CategoryManagement: React.FC = () => {
                 const createData: CreateCategoryDto = {
                     name: formData.name.trim(),
                     description: formData.description?.trim() || null,
-                    parent_category_id: formData.parent_category_id
+                    parent_category_id: formData.parent_category_id,
+                    image_url: imagePreview
                 };
                 
                 await createCategory.mutateAsync(createData);
@@ -191,6 +217,7 @@ const CategoryManagement: React.FC = () => {
                         <TableHead>
                             <TableRow>
                                 <TableCell>ID</TableCell>
+                                <TableCell>Image</TableCell>
                                 <TableCell>Name</TableCell>
                                 <TableCell>Description</TableCell>
                                 <TableCell>Parent Category</TableCell>
@@ -202,6 +229,32 @@ const CategoryManagement: React.FC = () => {
                             {categories.map((category) => (
                                 <TableRow key={`category-${category.id}`}>
                                     <TableCell>{category.id}</TableCell>
+                                    <TableCell>
+                                        {category.image_url ? (
+                                            <Card sx={{ width: 60, height: 60 }}>
+                                                <CardMedia
+                                                    component="img"
+                                                    image={formatImageUrl(category.image_url)}
+                                                    alt={category.name}
+                                                    sx={{ objectFit: 'cover' }}
+                                                />
+                                            </Card>
+                                        ) : (
+                                            <Box
+                                                sx={{
+                                                    width: 60,
+                                                    height: 60,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    bgcolor: 'grey.100',
+                                                    borderRadius: 1
+                                                }}
+                                            >
+                                                <ImageIcon color="disabled" />
+                                            </Box>
+                                        )}
+                                    </TableCell>
                                     <TableCell>
                                         {category.name}
                                         {categories.some(c => c.parent_id === category.id) && (
@@ -291,6 +344,50 @@ const CategoryManagement: React.FC = () => {
                                     ))}
                             </Select>
                         </FormControl>
+                        <Box sx={{ mt: 2 }}>
+                            <Typography variant="subtitle1" gutterBottom>
+                                Category Image
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                                {imagePreview ? (
+                                    <Card sx={{ width: 100, height: 100 }}>
+                                        <CardMedia
+                                            component="img"
+                                            image={imagePreview}
+                                            alt="Category preview"
+                                            sx={{ objectFit: 'cover' }}
+                                        />
+                                    </Card>
+                                ) : (
+                                    <Box
+                                        sx={{
+                                            width: 100,
+                                            height: 100,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            bgcolor: 'grey.100',
+                                            borderRadius: 1
+                                        }}
+                                    >
+                                        <ImageIcon color="disabled" />
+                                    </Box>
+                                )}
+                                <Button
+                                    variant="outlined"
+                                    component="label"
+                                    startIcon={<ImageIcon />}
+                                >
+                                    Upload Image
+                                    <input
+                                        type="file"
+                                        hidden
+                                        accept="image/*"
+                                        onChange={handleImageChange}
+                                    />
+                                </Button>
+                            </Box>
+                        </Box>
                     </DialogContent>
                     <DialogActions>
                         <Button onClick={handleCloseDialog}>Cancel</Button>

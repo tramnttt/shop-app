@@ -21,12 +21,28 @@ import {
   TableCell,
   TableContainer,
   TableRow,
-  Link as MuiLink
+  Link as MuiLink,
+  Container,
+  IconButton,
+  Tooltip,
+  Rating,
+  Fade,
+  Zoom,
+  useTheme,
+  useMediaQuery
 } from '@mui/material';
 import { 
   AddShoppingCart, 
   NavigateNext as NavigateNextIcon,
-  Home as HomeIcon
+  Home as HomeIcon,
+  FavoriteBorder,
+  Favorite,
+  Share,
+  Star,
+  LocalShipping,
+  Security,
+  Support,
+  ArrowBack
 } from '@mui/icons-material';
 import { useCart } from '../contexts/CartContext';
 import { productService } from '../services/productService';
@@ -104,10 +120,13 @@ const getProductImages = (product: any): ProductImage[] => {
 };
 
 const ProductDetailPage: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { id } = useParams<{ id: string }>();
   const { addToCart } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [isFavorite, setIsFavorite] = useState(false);
   
   // Use the useProduct hook to fetch product data
   const { 
@@ -145,8 +164,8 @@ const ProductDetailPage: React.FC = () => {
   // Show loading indicator
   if (isLoading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>
-        <CircularProgress />
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <CircularProgress size={60} />
       </Box>
     );
   }
@@ -160,26 +179,28 @@ const ProductDetailPage: React.FC = () => {
         : 'Failed to load product';
 
     return (
-      <Alert 
-        severity="error" 
-        sx={{ my: 4 }}
-        action={
-          <Button color="inherit" component={RouterLink} to="/products">
-            Back to Products
-          </Button>
-        }
-      >
-        {isError ? `Error: ${errorMessage}` : 'Product not found or has been removed.'}
-        {isError && (
-          <Button 
-            size="small" 
-            sx={{ ml: 2 }} 
-            onClick={() => refetch()}
-          >
-            Try Again
-          </Button>
-        )}
-      </Alert>
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Alert 
+          severity="error" 
+          sx={{ my: 4 }}
+          action={
+            <Button color="inherit" component={RouterLink} to="/products">
+              Back to Products
+            </Button>
+          }
+        >
+          {isError ? `Error: ${errorMessage}` : 'Product not found or has been removed.'}
+          {isError && (
+            <Button 
+              size="small" 
+              sx={{ ml: 2 }} 
+              onClick={() => refetch()}
+            >
+              Try Again
+            </Button>
+          )}
+        </Alert>
+      </Container>
     );
   }
 
@@ -195,7 +216,17 @@ const ProductDetailPage: React.FC = () => {
   const formattedMainImageUrl = getSafeImageUrl(mainImageUrl);
 
   return (
-    <Box sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      {/* Back Button */}
+      <Button
+        startIcon={<ArrowBack />}
+        component={RouterLink}
+        to="/products"
+        sx={{ mb: 2 }}
+      >
+        Back to Products
+      </Button>
+
       {/* Breadcrumbs */}
       <Breadcrumbs 
         separator={<NavigateNextIcon fontSize="small" />}
@@ -224,44 +255,91 @@ const ProductDetailPage: React.FC = () => {
       <Grid container spacing={6}>
         {/* Product Images */}
         <Grid item xs={12} md={6}>
-          <Paper 
-            elevation={2} 
-            sx={{ 
-              p: 2, 
-              mb: 2, 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center',
-              height: 400,
-              bgcolor: 'grey.100'
-            }}
-          >
-            <img 
-              src={formattedMainImageUrl} 
-              alt={product.name}
-              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
-            />
-          </Paper>
+          <Fade in timeout={500}>
+            <Paper 
+              elevation={2} 
+              sx={{ 
+                p: 2, 
+                mb: 2, 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center',
+                height: isMobile ? 300 : 400,
+                bgcolor: 'grey.100',
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+            >
+              <img 
+                src={formattedMainImageUrl} 
+                alt={product.name}
+                style={{ 
+                  maxWidth: '100%', 
+                  maxHeight: '100%', 
+                  objectFit: 'contain',
+                  transition: 'transform 0.3s ease-in-out'
+                }}
+              />
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 16,
+                  right: 16,
+                  display: 'flex',
+                  gap: 1,
+                  zIndex: 1
+                }}
+              >
+                <Tooltip title={isFavorite ? "Remove from favorites" : "Add to favorites"}>
+                  <IconButton 
+                    onClick={() => setIsFavorite(!isFavorite)}
+                    sx={{ 
+                      bgcolor: 'background.paper',
+                      '&:hover': { bgcolor: 'background.paper' }
+                    }}
+                  >
+                    {isFavorite ? <Favorite color="error" /> : <FavoriteBorder />}
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Share">
+                  <IconButton 
+                    sx={{ 
+                      bgcolor: 'background.paper',
+                      '&:hover': { bgcolor: 'background.paper' }
+                    }}
+                  >
+                    <Share />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            </Paper>
+          </Fade>
 
           {images.length > 1 && (
             <ImageList cols={4} rowHeight={80} gap={8}>
               {images.map((image, index) => (
-                <ImageListItem 
-                  key={image.image_id || index}
-                  onClick={() => setSelectedImageIndex(index)}
-                  sx={{ 
-                    cursor: 'pointer', 
-                    border: selectedImageIndex === index ? '2px solid' : 'none',
-                    borderColor: 'primary.main',
-                    borderRadius: 1
-                  }}
-                >
-                  <img
-                    src={getSafeImageUrl(image.image_url)}
-                    alt={image.alt_text || product.name}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
-                </ImageListItem>
+                <Zoom in key={image.image_id || index} timeout={300} style={{ transitionDelay: `${index * 50}ms` }}>
+                  <ImageListItem 
+                    onClick={() => setSelectedImageIndex(index)}
+                    sx={{ 
+                      cursor: 'pointer', 
+                      border: selectedImageIndex === index ? '2px solid' : 'none',
+                      borderColor: 'primary.main',
+                      borderRadius: 1,
+                      overflow: 'hidden',
+                      transition: 'transform 0.2s ease-in-out',
+                      '&:hover': {
+                        transform: 'scale(1.05)'
+                      }
+                    }}
+                  >
+                    <img
+                      src={getSafeImageUrl(image.image_url)}
+                      alt={image.alt_text || product.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  </ImageListItem>
+                </Zoom>
               ))}
             </ImageList>
           )}
@@ -269,137 +347,199 @@ const ProductDetailPage: React.FC = () => {
 
         {/* Product Details */}
         <Grid item xs={12} md={6}>
-          <Typography variant="h4" gutterBottom>
-            {product.name}
-          </Typography>
+          <Fade in timeout={500}>
+            <Box>
+              <Typography variant="h4" gutterBottom sx={{ fontWeight: 600 }}>
+                {product.name}
+              </Typography>
 
-          <Box sx={{ mb: 3 }}>
-            {getProductCategories(product).length > 0 ? (
-              getProductCategories(product).map((category: ProductCategory) => (
-                <Chip
-                  key={category.category_id}
-                  label={category.name}
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Rating value={4.5} precision={0.5} readOnly sx={{ mr: 1 }} />
+                <Typography variant="body2" color="text.secondary">
+                  (12 reviews)
+                </Typography>
+              </Box>
+
+              <Box sx={{ mb: 3 }}>
+                {getProductCategories(product).length > 0 ? (
+                  getProductCategories(product).map((category: ProductCategory) => (
+                    <Chip
+                      key={category.category_id}
+                      label={category.name}
+                      size="small"
+                      variant="outlined"
+                      sx={{ mr: 1, mb: 1 }}
+                    />
+                  ))
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    No categories
+                  </Typography>
+                )}
+              </Box>
+
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, my: 2 }}>
+                {typeof product.sale_price === 'number' && product.sale_price < product.base_price ? (
+                  <>
+                    <Typography variant="h4" color="error" fontWeight="bold">
+                      ${formatPrice(product.sale_price)}
+                    </Typography>
+                    <Typography 
+                      variant="h6" 
+                      color="text.secondary" 
+                      sx={{ textDecoration: 'line-through' }}
+                    >
+                      ${formatPrice(product.base_price)}
+                    </Typography>
+                    <Chip 
+                      label={`${calculateDiscountPercentage(product.base_price, product.sale_price)}% OFF`} 
+                      color="error" 
+                      size="small"
+                      sx={{ fontWeight: 'bold' }}
+                    />
+                  </>
+                ) : (
+                  <Typography variant="h4" fontWeight="bold">
+                    ${formatPrice(product.base_price)}
+                  </Typography>
+                )}
+              </Box>
+
+              <Typography 
+                variant="subtitle1" 
+                color={hasStock(product) ? 'success.main' : 'error.main'} 
+                sx={{ 
+                  mb: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}
+              >
+                {hasStock(product) ? (
+                  <>
+                    <span>In Stock</span>
+                    {getLowStockMessage(product)}
+                  </>
+                ) : (
+                  'Out of Stock'
+                )}
+              </Typography>
+
+              <Divider sx={{ my: 3 }} />
+
+              <Typography variant="body1" sx={{ mb: 3, lineHeight: 1.8 }}>
+                {product.description}
+              </Typography>
+
+              {/* Product attributes */}
+              <TableContainer 
+                component={Paper} 
+                variant="outlined" 
+                sx={{ 
+                  mb: 3,
+                  borderRadius: 2,
+                  overflow: 'hidden'
+                }}
+              >
+                <Table size="small">
+                  <TableBody>
+                    <TableRow>
+                      <TableCell component="th" scope="row" sx={{ bgcolor: 'grey.100', width: '40%', fontWeight: 600 }}>
+                        SKU
+                      </TableCell>
+                      <TableCell>{product.sku || 'N/A'}</TableCell>
+                    </TableRow>
+                    {hasPropertyValue(product, 'metal_type') && (
+                      <TableRow>
+                        <TableCell component="th" scope="row" sx={{ bgcolor: 'grey.100', fontWeight: 600 }}>
+                          Metal Type
+                        </TableCell>
+                        <TableCell>{product.metal_type}</TableCell>
+                      </TableRow>
+                    )}
+                    {hasPropertyValue(product, 'gemstone_type') && (
+                      <TableRow>
+                        <TableCell component="th" scope="row" sx={{ bgcolor: 'grey.100', fontWeight: 600 }}>
+                          Gemstone
+                        </TableCell>
+                        <TableCell>{product.gemstone_type}</TableCell>
+                      </TableRow>
+                    )}
+                    {hasPropertyValue(product, 'weight') && (
+                      <TableRow>
+                        <TableCell component="th" scope="row" sx={{ bgcolor: 'grey.100', fontWeight: 600 }}>
+                          Weight
+                        </TableCell>
+                        <TableCell>{product.weight} g</TableCell>
+                      </TableRow>
+                    )}
+                    {hasPropertyValue(product, 'dimensions') && (
+                      <TableRow>
+                        <TableCell component="th" scope="row" sx={{ bgcolor: 'grey.100', fontWeight: 600 }}>
+                          Dimensions
+                        </TableCell>
+                        <TableCell>{product.dimensions}</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
+              {/* Add to cart section */}
+              <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 4 }}>
+                <TextField
+                  label="Quantity"
+                  type="number"
+                  value={quantity}
+                  onChange={handleQuantityChange}
+                  InputProps={{ 
+                    inputProps: { 
+                      min: 1, 
+                      max: hasStock(product) ? product.stock_quantity : 1 
+                    } 
+                  }}
                   size="small"
-                  variant="outlined"
-                  sx={{ mr: 1 }}
+                  sx={{ width: 100 }}
+                  disabled={!hasStock(product)}
                 />
-              ))
-            ) : (
-              <Typography variant="body2" color="text.secondary">
-                No categories
-              </Typography>
-            )}
-          </Box>
-
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, my: 2 }}>
-            {typeof product.sale_price === 'number' && product.sale_price < product.base_price ? (
-              <>
-                <Typography variant="h4" color="error" fontWeight="bold">
-                  ${formatPrice(product.sale_price)}
-                </Typography>
-                <Typography 
-                  variant="h6" 
-                  color="text.secondary" 
-                  sx={{ textDecoration: 'line-through' }}
+                <Button
+                  variant="contained"
+                  startIcon={<AddShoppingCart />}
+                  size="large"
+                  onClick={handleAddToCart}
+                  disabled={!hasStock(product)}
+                  sx={{ 
+                    px: 4,
+                    py: 1.5,
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 600
+                  }}
                 >
-                  ${formatPrice(product.base_price)}
-                </Typography>
-                <Chip 
-                  label={`${calculateDiscountPercentage(product.base_price, product.sale_price)}% OFF`} 
-                  color="error" 
-                  size="small" 
-                />
-              </>
-            ) : (
-              <Typography variant="h4" fontWeight="bold">
-                ${formatPrice(product.base_price)}
-              </Typography>
-            )}
-          </Box>
+                  Add to Cart
+                </Button>
+              </Stack>
 
-          <Typography variant="subtitle1" color={hasStock(product) ? 'success.main' : 'error.main'} sx={{ mb: 2 }}>
-            {hasStock(product) ? 'In Stock' : 'Out of Stock'}
-            {getLowStockMessage(product)}
-          </Typography>
-
-          <Divider sx={{ my: 3 }} />
-
-          <Typography variant="body1" sx={{ mb: 3 }}>
-            {product.description}
-          </Typography>
-
-          {/* Product attributes */}
-          <TableContainer component={Paper} variant="outlined" sx={{ mb: 3 }}>
-            <Table size="small">
-              <TableBody>
-                <TableRow>
-                  <TableCell component="th" scope="row" sx={{ bgcolor: 'grey.100', width: '40%' }}>
-                    SKU
-                  </TableCell>
-                  <TableCell>{product.sku || 'N/A'}</TableCell>
-                </TableRow>
-                {hasPropertyValue(product, 'metal_type') && (
-                  <TableRow>
-                    <TableCell component="th" scope="row" sx={{ bgcolor: 'grey.100' }}>
-                      Metal Type
-                    </TableCell>
-                    <TableCell>{product.metal_type}</TableCell>
-                  </TableRow>
-                )}
-                {hasPropertyValue(product, 'gemstone_type') && (
-                  <TableRow>
-                    <TableCell component="th" scope="row" sx={{ bgcolor: 'grey.100' }}>
-                      Gemstone
-                    </TableCell>
-                    <TableCell>{product.gemstone_type}</TableCell>
-                  </TableRow>
-                )}
-                {hasPropertyValue(product, 'weight') && (
-                  <TableRow>
-                    <TableCell component="th" scope="row" sx={{ bgcolor: 'grey.100' }}>
-                      Weight
-                    </TableCell>
-                    <TableCell>{product.weight} g</TableCell>
-                  </TableRow>
-                )}
-                {hasPropertyValue(product, 'dimensions') && (
-                  <TableRow>
-                    <TableCell component="th" scope="row" sx={{ bgcolor: 'grey.100' }}>
-                      Dimensions
-                    </TableCell>
-                    <TableCell>{product.dimensions}</TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-
-          {/* Add to cart section */}
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 4 }}>
-            <TextField
-              label="Quantity"
-              type="number"
-              value={quantity}
-              onChange={handleQuantityChange}
-              InputProps={{ inputProps: { min: 1, max: hasStock(product) ? product.stock_quantity : 1 } }}
-              size="small"
-              sx={{ width: 100 }}
-              disabled={!hasStock(product)}
-            />
-            <Button
-              variant="contained"
-              startIcon={<AddShoppingCart />}
-              size="large"
-              onClick={handleAddToCart}
-              disabled={!hasStock(product)}
-              sx={{ px: 4 }}
-            >
-              Add to Cart
-            </Button>
-          </Stack>
+              {/* Features */}
+              <Box sx={{ mt: 6, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <LocalShipping color="primary" />
+                  <Typography variant="body2">Free Shipping</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Security color="primary" />
+                  <Typography variant="body2">Secure Payment</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Support color="primary" />
+                  <Typography variant="body2">24/7 Support</Typography>
+                </Box>
+              </Box>
+            </Box>
+          </Fade>
         </Grid>
       </Grid>
-    </Box>
+    </Container>
   );
 };
 

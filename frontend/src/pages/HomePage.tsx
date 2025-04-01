@@ -8,43 +8,35 @@ import {
     Card, 
     CardMedia, 
     CardContent,
-    CardActions
+    CardActions,
+    CircularProgress,
+    Alert
 } from '@mui/material';
 import { Link } from 'react-router-dom';
-
-// Mock featured products
-const featuredProducts = [
-    {
-        id: 1,
-        name: 'Diamond Necklace',
-        description: 'Elegant diamond necklace with 18k gold chain',
-        price: 1299.99,
-        imageUrl: 'https://via.placeholder.com/300x300?text=Diamond+Necklace'
-    },
-    {
-        id: 2,
-        name: 'Sapphire Earrings',
-        description: 'Beautiful blue sapphire earrings with silver backing',
-        price: 699.99,
-        imageUrl: 'https://via.placeholder.com/300x300?text=Sapphire+Earrings'
-    },
-    {
-        id: 3,
-        name: 'Gold Bracelet',
-        description: 'Handcrafted 24k gold bracelet with unique design',
-        price: 899.99,
-        imageUrl: 'https://via.placeholder.com/300x300?text=Gold+Bracelet'
-    },
-    {
-        id: 4,
-        name: 'Pearl Ring',
-        description: 'Classic pearl ring with silver band',
-        price: 499.99,
-        imageUrl: 'https://via.placeholder.com/300x300?text=Pearl+Ring'
-    }
-];
+import { useProducts } from '../hooks/useProducts';
+import { useCategories } from '../hooks/useCategories';
+import { formatImageUrl } from '../utils/imageUtils';
 
 const HomePage: React.FC = () => {
+    // Fetch featured products from API
+    const { 
+        data: productsData, 
+        isLoading: productsLoading, 
+        isError: productsError,
+        error: productsErrorMsg 
+    } = useProducts({
+        limit: 4,
+        featured: true
+    });
+
+    // Fetch categories from API
+    const {
+        data: categories = [],
+        isLoading: categoriesLoading,
+        isError: categoriesError,
+        error: categoriesErrorMsg
+    } = useCategories();
+
     return (
         <Box>
             {/* Hero Section */}
@@ -114,66 +106,83 @@ const HomePage: React.FC = () => {
                 >
                     Featured Products
                 </Typography>
-                <Grid container spacing={4}>
-                    {featuredProducts.map((product) => (
-                        <Grid item key={product.id} xs={12} sm={6} md={3}>
-                            <Card 
-                                sx={{ 
-                                    height: '100%', 
-                                    display: 'flex', 
-                                    flexDirection: 'column',
-                                    transition: 'all 0.3s ease',
-                                    '&:hover': {
-                                        transform: 'translateY(-5px)',
-                                        boxShadow: 6
-                                    }
-                                }}
-                            >
-                                <CardMedia
-                                    component="img"
-                                    height="200"
-                                    image={product.imageUrl}
-                                    alt={product.name}
-                                />
-                                <CardContent sx={{ flexGrow: 1 }}>
-                                    <Typography gutterBottom variant="h6" component="h3">
-                                        {product.name}
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary">
-                                        {product.description}
-                                    </Typography>
-                                    <Typography 
-                                        variant="h6" 
-                                        color="primary" 
-                                        sx={{ 
-                                            mt: 2,
-                                            fontWeight: 600
-                                        }}
-                                    >
-                                        ${product.price.toFixed(2)}
-                                    </Typography>
-                                </CardContent>
-                                <CardActions sx={{ p: 2, pt: 0 }}>
-                                    <Button 
-                                        size="small" 
-                                        component={Link} 
-                                        to={`/products/${product.id}`}
-                                        sx={{ mr: 1 }}
-                                    >
-                                        View Details
-                                    </Button>
-                                    <Button 
-                                        size="small" 
-                                        color="primary"
-                                        variant="contained"
-                                    >
-                                        Add to Cart
-                                    </Button>
-                                </CardActions>
-                            </Card>
-                        </Grid>
-                    ))}
-                </Grid>
+                
+                {productsLoading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                        <CircularProgress />
+                    </Box>
+                ) : productsError ? (
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                        Error loading featured products: {productsErrorMsg instanceof Error ? productsErrorMsg.message : 'Unknown error'}
+                    </Alert>
+                ) : productsData?.products && productsData.products.length > 0 ? (
+                    <Grid container spacing={4}>
+                        {productsData.products.map((product) => (
+                            <Grid item key={product.product_id} xs={12} sm={6} md={3}>
+                                <Card 
+                                    sx={{ 
+                                        height: '100%', 
+                                        display: 'flex', 
+                                        flexDirection: 'column',
+                                        transition: 'all 0.3s ease',
+                                        '&:hover': {
+                                            transform: 'translateY(-5px)',
+                                            boxShadow: 6
+                                        }
+                                    }}
+                                >
+                                    <CardMedia
+                                        component="img"
+                                        height="200"
+                                        image={formatImageUrl(product.images[0]?.image_url)}
+                                        alt={product.name}
+                                        sx={{ objectFit: 'contain', bgcolor: 'grey.100', p: 1 }}
+                                    />
+                                    <CardContent sx={{ flexGrow: 1 }}>
+                                        <Typography gutterBottom variant="h6" component="h3">
+                                            {product.name}
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary">
+                                            {product.description}
+                                        </Typography>
+                                        <Typography 
+                                            variant="h6" 
+                                            color="primary" 
+                                            sx={{ 
+                                                mt: 2,
+                                                fontWeight: 600
+                                            }}
+                                        >
+                                            ${product.sale_price || product.base_price}
+                                        </Typography>
+                                    </CardContent>
+                                    <CardActions sx={{ p: 2, pt: 0 }}>
+                                        <Button 
+                                            size="small" 
+                                            component={Link} 
+                                            to={`/products/${product.product_id}`}
+                                            sx={{ mr: 1 }}
+                                        >
+                                            View Details
+                                        </Button>
+                                        <Button 
+                                            size="small" 
+                                            color="primary"
+                                            variant="contained"
+                                            disabled={product.stock_quantity <= 0}
+                                        >
+                                            {product.stock_quantity > 0 ? 'Add to Cart' : 'Out of Stock'}
+                                        </Button>
+                                    </CardActions>
+                                </Card>
+                            </Grid>
+                        ))}
+                    </Grid>
+                ) : (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                        No featured products available at the moment.
+                    </Alert>
+                )}
             </Container>
 
             {/* Categories Section */}
@@ -199,60 +208,74 @@ const HomePage: React.FC = () => {
                 >
                     Shop by Category
                 </Typography>
-                <Grid container spacing={4}>
-                    {['Necklaces', 'Earrings', 'Bracelets', 'Rings'].map((category) => (
-                        <Grid item key={category} xs={12} sm={6} md={3}>
-                            <Box
-                                component={Link}
-                                to={`/products?category=${category.toLowerCase()}`}
-                                sx={{
-                                    height: 200,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    backgroundImage: `url(https://via.placeholder.com/300x200?text=${category})`,
-                                    backgroundSize: 'cover',
-                                    color: 'white',
-                                    position: 'relative',
-                                    cursor: 'pointer',
-                                    textDecoration: 'none',
-                                    borderRadius: 1,
-                                    overflow: 'hidden',
-                                    '&::before': {
-                                        content: '""',
-                                        position: 'absolute',
-                                        top: 0,
-                                        left: 0,
-                                        width: '100%',
-                                        height: '100%',
-                                        backgroundColor: 'rgba(0,0,0,0.4)',
-                                        transition: 'background-color 0.3s ease'
-                                    },
-                                    '&:hover': {
-                                        '&::before': {
-                                            backgroundColor: 'rgba(0,0,0,0.2)'
-                                        },
-                                        transform: 'scale(1.03)',
-                                        transition: 'transform 0.3s ease'
-                                    }
-                                }}
-                            >
-                                <Typography 
-                                    variant="h5" 
-                                    component="span" 
-                                    sx={{ 
+                {categoriesLoading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                        <CircularProgress />
+                    </Box>
+                ) : categoriesError ? (
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                        Error loading categories: {categoriesErrorMsg instanceof Error ? categoriesErrorMsg.message : 'Unknown error'}
+                    </Alert>
+                ) : categories.length > 0 ? (
+                    <Grid container spacing={4}>
+                        {categories.map((category) => (
+                            <Grid item key={category.id} xs={12} sm={6} md={3}>
+                                <Box
+                                    component={Link}
+                                    to={`/products?category=${category.id}`}
+                                    sx={{
+                                        height: 200,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        backgroundImage: `url(https://via.placeholder.com/300x200?text=${encodeURIComponent(category.name)})`,
+                                        backgroundSize: 'cover',
+                                        color: 'white',
                                         position: 'relative',
-                                        zIndex: 1,
-                                        fontWeight: 600,
-                                        textShadow: '2px 2px 4px rgba(0,0,0,0.5)'
+                                        cursor: 'pointer',
+                                        textDecoration: 'none',
+                                        borderRadius: 1,
+                                        overflow: 'hidden',
+                                        '&::before': {
+                                            content: '""',
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            width: '100%',
+                                            height: '100%',
+                                            backgroundColor: 'rgba(0,0,0,0.4)',
+                                            transition: 'background-color 0.3s ease'
+                                        },
+                                        '&:hover': {
+                                            '&::before': {
+                                                backgroundColor: 'rgba(0,0,0,0.2)'
+                                            },
+                                            transform: 'scale(1.03)',
+                                            transition: 'transform 0.3s ease'
+                                        }
                                     }}
                                 >
-                                    {category}
-                                </Typography>
-                            </Box>
-                        </Grid>
-                    ))}
-                </Grid>
+                                    <Typography 
+                                        variant="h5" 
+                                        component="span" 
+                                        sx={{ 
+                                            position: 'relative',
+                                            zIndex: 1,
+                                            fontWeight: 600,
+                                            textShadow: '2px 2px 4px rgba(0,0,0,0.5)'
+                                        }}
+                                    >
+                                        {category.name}
+                                    </Typography>
+                                </Box>
+                            </Grid>
+                        ))}
+                    </Grid>
+                ) : (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                        No categories available at the moment.
+                    </Alert>
+                )}
             </Container>
         </Box>
     );

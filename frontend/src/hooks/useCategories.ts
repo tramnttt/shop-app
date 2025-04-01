@@ -22,11 +22,21 @@ export const useCategory = (id: number) => {
     });
 };
 
+interface CreateCategoryWithImage extends CreateCategoryDto {
+    imageFile?: File;
+}
+
+interface UpdateCategoryWithImage {
+    id: number;
+    data: UpdateCategoryDto;
+    imageFile?: File;
+}
+
 export const useCreateCategory = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (data: CreateCategoryDto) => categoryService.create(data),
+        mutationFn: (data: CreateCategoryWithImage) => categoryService.create(data, data.imageFile),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['categories'] });
         }
@@ -37,8 +47,8 @@ export const useUpdateCategory = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: ({ id, data }: { id: number; data: UpdateCategoryDto }) =>
-            categoryService.update(id, data),
+        mutationFn: (data: UpdateCategoryWithImage) =>
+            categoryService.update(data.id, data.data, data.imageFile),
         onSuccess: (updatedCategory) => {
             queryClient.invalidateQueries({ queryKey: ['category', updatedCategory.id] });
             queryClient.invalidateQueries({ queryKey: ['categories'] });

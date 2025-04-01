@@ -12,5 +12,5 @@ export const databaseConfig: TypeOrmModuleOptions = {
     database: process.env.DB_DATABASE || 'jewelry_shop',
     entities: [__dirname + '/../**/*.entity{.ts,.js}'],
     synchronize: process.env.NODE_ENV === 'development',
-    logging: process.env.NODE_ENV === 'development',
+    // logging: process.env.NODE_ENV === 'development',
 }; 

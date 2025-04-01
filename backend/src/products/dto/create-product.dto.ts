@@ -1,5 +1,6 @@
 import { IsNotEmpty, IsNumber, IsOptional, IsArray, Min, IsBoolean, IsString } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateProductDto {
     @IsNotEmpty({ message: 'Product name is required' })
@@ -45,14 +46,48 @@ export class CreateProductDto {
     })
     stock_quantity: number;
 
+    @ApiProperty({ description: 'Is this a featured product', required: false, default: false })
     @IsOptional()
-    @IsBoolean()
+    @IsBoolean({ message: 'is_featured must be a boolean value' })
     @Transform(({ value }) => {
-        if (value === 'true' || value === true) return true;
-        if (value === 'false' || value === false) return false;
+        console.log('Transforming is_featured value:', {
+            originalValue: value,
+            originalType: typeof value,
+            valueToString: String(value),
+            valueToLower: String(value).toLowerCase(),
+            isFalseString: String(value).toLowerCase() === 'false',
+            isTrueString: String(value).toLowerCase() === 'true'
+        });
+
+        // Handle different forms of truthy/falsy values
+        if (typeof value === 'boolean') {
+            console.log('is_featured was already a boolean:', value);
+            return value;
+        }
+
+        if (typeof value === 'string') {
+            // CRITICAL FIX: Explicitly check for 'false' string value
+            if (String(value).toLowerCase() === 'false') {
+                console.log('String "false" explicitly converted to boolean false');
+                return false;
+            }
+
+            const lowercaseValue = value.toLowerCase();
+            const result = lowercaseValue === 'true' || lowercaseValue === '1' || lowercaseValue === 'yes';
+            console.log(`is_featured string "${value}" transformed to boolean:`, result);
+            return result;
+        }
+
+        if (typeof value === 'number') {
+            const result = value === 1;
+            console.log(`is_featured number ${value} transformed to boolean:`, result);
+            return result;
+        }
+
+        console.log('is_featured had unexpected type, defaulting to false');
         return false;
     })
-    is_featured?: boolean;
+    is_featured: boolean;
 
     @IsOptional()
     @IsString()

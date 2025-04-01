@@ -37,7 +37,8 @@ export class CategoriesService {
         const category = this.categoriesRepository.create({
             name: createCategoryDto.name,
             description: createCategoryDto.description,
-            parent_category_id: createCategoryDto.parent_category_id
+            parent_category_id: createCategoryDto.parent_category_id,
+            image_url: createCategoryDto.image_url
         });
 
         const savedCategory = await this.categoriesRepository.save(category);
@@ -50,7 +51,8 @@ export class CategoriesService {
             {
                 name: updateCategoryDto.name,
                 description: updateCategoryDto.description,
-                parent_category_id: updateCategoryDto.parent_category_id
+                parent_category_id: updateCategoryDto.parent_category_id,
+                image_url: updateCategoryDto.image_url
             }
         );
 
@@ -77,6 +79,7 @@ export class CategoriesService {
             name: category.name,
             description: category.description,
             parent_id: category.parent_category_id,
+            image_url: category.image_url,
             created_at: category.created_at,
             updated_at: category.updated_at
         };

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardMedia, Typography, Box, Rating, Button, CardActionArea, Chip } from '@mui/material';
-import { ShoppingCart } from '@mui/icons-material';
+import { ShoppingCart, Star as StarIcon } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import { formatImageUrl, getPrimaryImageUrl } from '../utils/imageUtils';
@@ -66,6 +66,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) =
         <CardContent sx={{ flexGrow: 1, pb: compact ? 1 : undefined }}>
           <Typography gutterBottom variant={compact ? "body1" : "h6"} component="div" noWrap>
             {product.name}
+            {product.is_featured && (
+              <StarIcon 
+                fontSize="small" 
+                color="primary" 
+                sx={{ ml: 0.5, verticalAlign: 'middle' }} 
+              />
+            )}
           </Typography>
           
           {!compact && (

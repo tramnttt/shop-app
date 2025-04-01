@@ -44,9 +44,27 @@ export const useUpdateProduct = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: ({ id, data }: { id: number; data: UpdateProductDto | FormData }) =>
-            productService.update(id, data),
+        mutationFn: ({ id, data }: { id: number; data: UpdateProductDto | FormData }) => {
+            console.log('Update mutation started with data:', {
+                id,
+                isFormData: data instanceof FormData,
+                hasIsFeatured: data instanceof FormData ?
+                    data.has('is_featured') :
+                    'is_featured' in data
+            });
+
+            if (data instanceof FormData) {
+                // Log the form data contents
+                console.log('FormData contents:');
+                Array.from(data.entries()).forEach(([key, value]) => {
+                    console.log(`${key}:`, typeof value === 'string' ? value : '[File]');
+                });
+            }
+
+            return productService.update(id, data);
+        },
         onSuccess: (updatedProduct) => {
+            console.log('Product updated successfully:', updatedProduct);
             // Force immediate refetch of all product data
             queryClient.removeQueries({ queryKey: ['products'] }); // Remove cached data first
             queryClient.invalidateQueries({ queryKey: ['products'] }); // Then invalidate to refetch
@@ -56,6 +74,9 @@ export const useUpdateProduct = () => {
                 queryClient.invalidateQueries({ queryKey: ['product', updatedProduct.product_id] });
             }
         },
+        onError: (error) => {
+            console.error('Error updating product:', error);
+        }
     });
 };
 

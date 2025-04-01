@@ -56,6 +56,7 @@ const ProductsPage: React.FC = () => {
   // State for filters and pagination
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [showFeaturedOnly, setShowFeaturedOnly] = useState(false);
   const [sortBy, setSortBy] = useState('newest');
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 5000]);
   const [showFilters, setShowFilters] = useState(false);
@@ -79,6 +80,7 @@ const ProductsPage: React.FC = () => {
     limit: pageSize,
     search: searchQuery || undefined,
     categoryId: selectedCategory || undefined,
+    featured: showFeaturedOnly || undefined,
     minPrice: priceRange[0] > 0 ? priceRange[0] : undefined,
     maxPrice: priceRange[1] < 5000 ? priceRange[1] : undefined
   });
@@ -89,11 +91,13 @@ const ProductsPage: React.FC = () => {
     const pageParam = params.get('page');
     const searchParam = params.get('search');
     const categoryParam = params.get('category');
+    const featuredParam = params.get('featured');
     const sortParam = params.get('sort');
     
     if (pageParam) setPage(parseInt(pageParam));
     if (searchParam) setSearchQuery(searchParam);
     if (categoryParam) setSelectedCategory(parseInt(categoryParam));
+    if (featuredParam) setShowFeaturedOnly(featuredParam === 'true');
     if (sortParam) setSortBy(sortParam);
   }, [location.search]);
   
@@ -103,13 +107,14 @@ const ProductsPage: React.FC = () => {
     if (page > 1) searchParams.set('page', page.toString());
     if (searchQuery) searchParams.set('search', searchQuery);
     if (selectedCategory) searchParams.set('category', selectedCategory.toString());
+    if (showFeaturedOnly) searchParams.set('featured', 'true');
     if (sortBy && sortBy !== 'newest') searchParams.set('sort', sortBy);
     
     navigate({
       pathname: location.pathname,
       search: searchParams.toString() ? `?${searchParams.toString()}` : ''
     }, { replace: true });
-  }, [page, searchQuery, selectedCategory, sortBy, navigate, location.pathname]);
+  }, [page, searchQuery, selectedCategory, showFeaturedOnly, sortBy, navigate, location.pathname]);
   
   // Sort products (client-side sorting, as server might not support all sort options)
   const sortedProducts = productsData?.products ? [...productsData.products].sort((a, b) => {
@@ -166,6 +171,7 @@ const ProductsPage: React.FC = () => {
   const clearFilters = () => {
     setSearchQuery('');
     setSelectedCategory(null);
+    setShowFeaturedOnly(false);
     setSortBy('newest');
     setPriceRange([0, 5000]);
     setPage(1);
@@ -220,6 +226,25 @@ const ProductsPage: React.FC = () => {
             ))
           )}
         </Box>
+      </Box>
+      
+      <Box>
+        <Typography variant="subtitle1" gutterBottom fontWeight="medium">
+          Featured Items
+        </Typography>
+        <Button
+          variant={showFeaturedOnly ? 'contained' : 'outlined'}
+          size="small"
+          startIcon={<Star />}
+          onClick={() => {
+            setShowFeaturedOnly(!showFeaturedOnly);
+            setPage(1);
+            setTimeout(() => refetchProducts(), 0);
+          }}
+          sx={{ justifyContent: 'flex-start' }}
+        >
+          {showFeaturedOnly ? 'Featured Only' : 'Show Featured'}
+        </Button>
       </Box>
       
       <Box>

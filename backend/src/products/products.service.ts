@@ -119,6 +119,51 @@ export class ProductsService {
     }
 
     async create(createProductDto: CreateProductDto, files: Express.Multer.File[]) {
+        console.log(`Creating product with data:`, createProductDto);
+        console.log('Request type:', files?.length > 0 ? 'multipart/form-data with files' : 'JSON or empty multipart');
+
+        // Handle is_featured explicitly to ensure it's always a boolean
+        if ('is_featured' in createProductDto) {
+            const rawValue = createProductDto.is_featured;
+            console.log('Raw is_featured value for create:', {
+                value: rawValue,
+                type: typeof rawValue,
+                stringValue: rawValue !== undefined ? String(rawValue) : 'undefined'
+            });
+
+            // Always convert to boolean, null is not allowed for is_featured in database
+            let booleanValue: boolean;
+
+            if (rawValue === null || rawValue === undefined) {
+                console.log('is_featured is null/undefined, setting to false');
+                booleanValue = false;
+            } else if (typeof rawValue === 'boolean') {
+                console.log('is_featured is already boolean:', rawValue);
+                booleanValue = rawValue;
+            } else if (typeof rawValue === 'string') {
+                // CRITICAL FIX: Default behavior for 'true'/'false' strings seems broken
+                // Explicit check for string value 'false' to convert to boolean false
+                if (String(rawValue).toLowerCase() === 'false') {
+                    booleanValue = false;
+                    console.log(`String "false" explicitly converted to boolean false`);
+                } else {
+                    const lowerValue = String(rawValue).toLowerCase();
+                    booleanValue = lowerValue === 'true' || lowerValue === '1' || lowerValue === 'yes';
+                    console.log(`Converting string is_featured "${rawValue}" to boolean:`, booleanValue);
+                }
+            } else if (rawValue === 1 || rawValue === 0) {
+                booleanValue = rawValue === 1;
+                console.log(`Converting numeric is_featured ${rawValue} to boolean:`, booleanValue);
+            } else {
+                console.log('Unexpected is_featured value, defaulting to false:', rawValue);
+                booleanValue = false;
+            }
+
+            // Set the normalized boolean value
+            createProductDto.is_featured = booleanValue;
+            console.log('Final is_featured value to save:', booleanValue, typeof booleanValue);
+        }
+
         const { category_ids, ...productData } = createProductDto;
 
         // Create and save the product
@@ -158,6 +203,39 @@ export class ProductsService {
     }
 
     async update(id: number, updateProductDto: UpdateProductDto, files: Express.Multer.File[]) {
+        console.log(`Updating product ${id} with data:`, updateProductDto);
+        console.log('Request type:', files?.length > 0 ? 'multipart/form-data with files' : 'JSON or empty multipart');
+
+        // Handle is_featured explicitly to ensure it's always a boolean
+        if ('is_featured' in updateProductDto) {
+            const rawValue = updateProductDto.is_featured;
+
+            // Always convert to boolean, null is not allowed for is_featured in database
+            let booleanValue: boolean;
+
+            if (rawValue === null || rawValue === undefined) {
+                booleanValue = false;
+            } else if (typeof rawValue === 'boolean') {
+                booleanValue = rawValue;
+            } else if (typeof rawValue === 'string') {
+                // CRITICAL FIX: Default behavior for 'true'/'false' strings seems broken
+                // Explicit check for string value 'false' to convert to boolean false
+                if (String(rawValue).toLowerCase() === 'false') {
+                    booleanValue = false;
+                } else {
+                    const lowerValue = String(rawValue).toLowerCase();
+                    booleanValue = lowerValue === 'true' || lowerValue === '1' || lowerValue === 'yes';
+                }
+            } else if (rawValue === 1 || rawValue === 0) {
+                booleanValue = rawValue === 1;
+            } else {
+                booleanValue = false;
+            }
+
+            // Set the normalized boolean value
+            updateProductDto.is_featured = booleanValue;
+        }
+
         const product = await this.findOne(id);
 
         if (!product) {
@@ -166,8 +244,18 @@ export class ProductsService {
 
         const { category_ids, ...productData } = updateProductDto;
 
-        // Update product data
+        // Now update the product with all data
         if (Object.keys(productData).length > 0) {
+            // FINAL SAFETY CHECK: Force is_featured to be a strict boolean value if present
+            if ('is_featured' in productData) {
+                // We use double negation to force conversion to boolean
+                const strictBoolean = productData.is_featured === true;
+                // Check if there's any issue with the type
+                if (typeof productData.is_featured !== 'boolean' || productData.is_featured !== strictBoolean) {
+                    productData.is_featured = strictBoolean;
+                }
+            }
+
             await this.productsRepository.update(id, productData);
         }
 
@@ -216,7 +304,16 @@ export class ProductsService {
             }
         }
 
-        return this.findOne(id);
+        // Fetch and log the updated product to verify changes
+        const updatedProduct = await this.findOne(id);
+        console.log('Product after update:', {
+            id,
+            is_featured: updatedProduct.is_featured,
+            is_featured_type: typeof updatedProduct.is_featured,
+            name: updatedProduct.name
+        });
+
+        return updatedProduct;
     }
 
     async remove(id: number) {

@@ -50,9 +50,25 @@ export class ProductsController {
             throw new BadRequestException('Maximum 5 images allowed');
         }
 
+        // Debug: Log the raw request body
+        console.log('*** CONTROLLER CREATE REQUEST ***');
+        console.log('Request Content-Type:', files?.length ? 'multipart/form-data' : 'application/json');
+        console.log('Raw is_featured value:', createProductDto.is_featured);
+        console.log('Raw is_featured type:', typeof createProductDto.is_featured);
+        console.log('is_featured in body:', 'is_featured' in createProductDto);
+
+        // Detailed DTO inspection
+        const dtoProperties = Object.keys(createProductDto);
+        console.log('DTO properties:', dtoProperties);
+
         try {
-            return await this.productsService.create(createProductDto, files || []);
+            const result = await this.productsService.create(createProductDto, files || []);
+            console.log('*** CONTROLLER CREATE RESPONSE ***');
+            console.log('Response is_featured:', result.is_featured);
+            console.log('Response is_featured type:', typeof result.is_featured);
+            return result;
         } catch (error) {
+            console.error('Error creating product:', error);
             throw error;
         }
     }
@@ -69,9 +85,34 @@ export class ProductsController {
             throw new BadRequestException('Maximum 5 images allowed');
         }
 
+        // Debug: Log the raw request body
+        console.log('*** CONTROLLER UPDATE REQUEST ***');
+        console.log('Request ID:', id);
+        console.log('Request Content-Type:', files?.length ? 'multipart/form-data' : 'application/json');
+        console.log('Raw is_featured value:', updateProductDto.is_featured);
+        console.log('Raw is_featured type:', typeof updateProductDto.is_featured);
+        console.log('is_featured in body:', 'is_featured' in updateProductDto);
+
+        // Detailed DTO inspection
+        const dtoProperties = Object.keys(updateProductDto);
+        console.log('DTO properties:', dtoProperties);
+
+        // Debug: Log key values
+        console.log('Update product DTO values:', {
+            name: updateProductDto.name,
+            price: updateProductDto.base_price,
+            is_featured: updateProductDto.is_featured,
+            is_featured_type: typeof updateProductDto.is_featured
+        });
+
         try {
-            return await this.productsService.update(id, updateProductDto, files || []);
+            const result = await this.productsService.update(id, updateProductDto, files || []);
+            console.log('*** CONTROLLER UPDATE RESPONSE ***');
+            console.log('Response is_featured:', result.is_featured);
+            console.log('Response is_featured type:', typeof result.is_featured);
+            return result;
         } catch (error) {
+            console.error('Error updating product:', error);
             throw error;
         }
     }

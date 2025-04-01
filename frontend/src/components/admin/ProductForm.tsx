@@ -30,7 +30,7 @@ import {
   Star as StarIcon
 } from '@mui/icons-material';
 import { useCreateProduct, useUpdateProduct } from '../../hooks/useProducts';
-import { Product, CreateProductDto, ProductImage, prepareProductFormData } from '../../services/productService';
+import { Product, CreateProductDto, ProductImage, prepareProductFormData, UpdateProductDto } from '../../services/productService';
 import { Category } from '../../services/categoryService';
 import ImageUpload from './ImageUpload';
 import { formatImageUrl } from '../../utils/imageUtils';
@@ -173,10 +173,29 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSuccess, cat
 
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: checked
-    }));
+    console.log(`Checkbox ${name} changed to ${checked} (${typeof checked})`);
+    
+    // For is_featured, ensure we're setting a proper boolean
+    if (name === 'is_featured') {
+      console.log(`Setting is_featured to: ${checked} (${typeof checked})`);
+      
+      // CRITICAL FIX: Ensure the value is a true boolean, not a string or other type
+      const booleanValue = checked === true;
+      console.log(`Normalized boolean value: ${booleanValue} (${typeof booleanValue})`);
+    }
+    
+    // We need to create a new object to trigger a re-render
+    setFormData(prev => {
+      // CRITICAL: For is_featured, ensure strict boolean type
+      const newValue = name === 'is_featured' ? (checked === true) : checked;
+      
+      const newFormData = {
+        ...prev,
+        [name]: newValue
+      };
+      console.log('Updated form data:', JSON.stringify(newFormData));
+      return newFormData;
+    });
   };
 
   const handleCategoryChange = (event: SelectChangeEvent<number[]>) => {
@@ -281,69 +300,122 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSuccess, cat
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-    
+    if (!validateForm()) return;
+
     try {
-      // Create FormData
-      const processedData = new FormData();
+      setError('');
       
-      // Required fields - ensure they are always included
-      processedData.append('name', formData.name.trim());
-      processedData.append('description', formData.description.trim() || '');
-      processedData.append('sku', formData.sku.trim());
-      processedData.append('base_price', formData.base_price.toString());
-      processedData.append('stock_quantity', formData.stock_quantity.toString());
+      // Create a clean product data object for both create and update
+      const productData: CreateProductDto | UpdateProductDto = {
+        name: formData.name,
+        description: formData.description,
+        sku: formData.sku,
+        base_price: formData.base_price,
+        stock_quantity: formData.stock_quantity,
+        category_ids: formData.category_ids,
+        is_featured: formData.is_featured === true  // CRITICAL: Ensure proper boolean
+      };
       
-      // Optional fields
+      // Only include optional fields if they have values
       if (formData.sale_price !== null && formData.sale_price !== undefined) {
-        processedData.append('sale_price', formData.sale_price.toString());
-      }
-      
-      processedData.append('is_featured', formData.is_featured ? 'true' : 'false');
-      
-      // Add category IDs - use the exact format needed by the backend
-      if (formData.category_ids && formData.category_ids.length > 0) {
-        // NestJS expects array parameters like this
-        formData.category_ids.forEach(id => {
-          processedData.append('category_ids[]', id.toString());
-        });
-      } else {
-        // Ensure an empty array is sent to prevent validation errors
-        processedData.append('category_ids', '[]');
-      }
-      
-      // Add selected images - these are the new images from file input
-      if (selectedImages.length > 0) {
-        selectedImages.forEach(file => {
-          processedData.append('images', file);
-        });
-      } else if (product && !selectedImages.length && imageUrls.length === 0) {
-        // If we're updating a product and all images were removed, send an empty array
-        // to indicate that all images should be deleted
-        processedData.append('images', '[]');
+        productData.sale_price = formData.sale_price;
       }
 
-      if (product) {
-        await updateProduct.mutateAsync({
-          id: product.product_id,
-          data: processedData
-        });
-      } else {
-        await createProduct.mutateAsync(processedData);
-      }
+      console.log('Product data object:', JSON.stringify(productData));
+      console.log('is_featured value:', productData.is_featured);
+      console.log('is_featured type:', typeof productData.is_featured);
       
+      // If we have image files to upload, we need to use FormData
+      const hasImageFiles = selectedImages.length > 0;
+      
+      // For product updates
+      if (product) {
+        console.log('USING JSON FORMAT for product update');
+        console.log('Updating product with ID:', product.product_id);
+        console.log('Original product featured status:', product.is_featured);
+        
+        // If we don't have new images, use JSON directly
+        if (!hasImageFiles) {
+          const updatedProduct = await updateProduct.mutateAsync({ 
+            id: product.product_id, 
+            data: productData 
+          });
+          console.log('Update response:', JSON.stringify(updatedProduct));
+          console.log('Update response featured status:', updatedProduct.is_featured);
+        }
+        // If we do have new images, we need to use FormData
+        else {
+          console.log('Using FormData for update because we have image files');
+          const processedData = convertToFormData(productData, selectedImages);
+          const updatedProduct = await updateProduct.mutateAsync({ 
+            id: product.product_id, 
+            data: processedData 
+          });
+          console.log('Update response:', JSON.stringify(updatedProduct));
+        }
+      } 
+      // For new products
+      else {
+        console.log('Creating new product');
+        
+        // If we don't have images, use JSON directly
+        if (!hasImageFiles) {
+          console.log('USING JSON FORMAT for product creation');
+          await createProduct.mutateAsync(productData as CreateProductDto);
+        }
+        // If we have images, use FormData
+        else {
+          console.log('Using FormData for creation because we have image files');
+          const processedData = convertToFormData(productData, selectedImages);
+          await createProduct.mutateAsync(processedData);
+        }
+      }
+
       onSubmitSuccess();
-    } catch (error: any) {
-      console.error('Product save error:', error);
-      setError(
-        Array.isArray(error.response?.data?.message)
-          ? error.response.data.message.join(', ')
-          : error.response?.data?.message || 'An error occurred while saving the product'
-      );
+    } catch (err: any) {
+      console.error('Error saving product:', err);
+      setError(err.response?.data?.message || 'An error occurred while saving the product');
     }
+  };
+
+  // Helper function to convert product data to FormData when we have images
+  const convertToFormData = (data: CreateProductDto | UpdateProductDto, images: File[]): FormData => {
+    const formData = new FormData();
+    
+    // Add basic fields
+    if (data.name) formData.append('name', data.name);
+    if (data.description) formData.append('description', data.description || '');
+    if (data.sku) formData.append('sku', data.sku);
+    
+    // Numeric values
+    if (data.base_price !== undefined) {
+      formData.append('base_price', data.base_price.toString());
+    }
+    if (data.stock_quantity !== undefined) {
+      formData.append('stock_quantity', data.stock_quantity.toString());
+    }
+    if (data.sale_price !== null && data.sale_price !== undefined) {
+      formData.append('sale_price', data.sale_price.toString());
+    }
+    
+    // Boolean values - CRITICAL: proper conversion
+    const isFeaturedValue = data.is_featured === true ? 'true' : 'false';
+    formData.append('is_featured', isFeaturedValue);
+    console.log('FormData is_featured value:', isFeaturedValue);
+    
+    // Categories
+    if (data.category_ids) {
+      data.category_ids.forEach(id => {
+        formData.append('category_ids[]', id.toString());
+      });
+    }
+    
+    // Add images
+    images.forEach(image => {
+      formData.append('images', image);
+    });
+    
+    return formData;
   };
 
   const isLoading = createProduct.isLoading || updateProduct.isLoading;
@@ -486,7 +558,18 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSuccess, cat
                 disabled={isLoading}
               />
             }
-            label="Featured Product"
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Typography>Featured Product</Typography>
+                {formData.is_featured && (
+                  <StarIcon 
+                    fontSize="small" 
+                    color="primary" 
+                    sx={{ ml: 0.5 }} 
+                  />
+                )}
+              </Box>
+            }
           />
         </Grid>
         

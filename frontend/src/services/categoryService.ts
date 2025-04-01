@@ -5,6 +5,7 @@ export interface Category {
     name: string;
     description: string | null;
     parent_id?: number | null;
+    image_url?: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -13,12 +14,14 @@ export interface CreateCategoryDto {
     name: string;
     description: string | null;
     parent_category_id?: number | null;
+    image_url?: string | null;
 }
 
 export interface UpdateCategoryDto {
     name?: string;
     description?: string | null;
     parent_category_id?: number | null;
+    image_url?: string | null;
 }
 
 const handleError = (error: any) => {
@@ -45,19 +48,49 @@ export const categoryService = {
         }
     },
 
-    create: async (data: CreateCategoryDto): Promise<Category> => {
+    create: async (data: CreateCategoryDto, imageFile?: File): Promise<Category> => {
         try {
-            const response = await axiosInstance.post<Category>('/categories', data);
-            return response.data;
+            if (imageFile) {
+                const formData = new FormData();
+                formData.append('image', imageFile);
+                formData.append('name', data.name);
+                if (data.description) formData.append('description', data.description);
+                if (data.parent_category_id) formData.append('parent_category_id', data.parent_category_id.toString());
+
+                const response = await axiosInstance.post<Category>('/categories', formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
+                });
+                return response.data;
+            } else {
+                const response = await axiosInstance.post<Category>('/categories', data);
+                return response.data;
+            }
         } catch (error) {
             return handleError(error);
         }
     },
 
-    update: async (id: number, data: UpdateCategoryDto): Promise<Category> => {
+    update: async (id: number, data: UpdateCategoryDto, imageFile?: File): Promise<Category> => {
         try {
-            const response = await axiosInstance.patch<Category>(`/categories/${id}`, data);
-            return response.data;
+            if (imageFile) {
+                const formData = new FormData();
+                formData.append('image', imageFile);
+                if (data.name) formData.append('name', data.name);
+                if (data.description) formData.append('description', data.description);
+                if (data.parent_category_id) formData.append('parent_category_id', data.parent_category_id.toString());
+
+                const response = await axiosInstance.patch<Category>(`/categories/${id}`, formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
+                });
+                return response.data;
+            } else {
+                const response = await axiosInstance.patch<Category>(`/categories/${id}`, data);
+                return response.data;
+            }
         } catch (error) {
             return handleError(error);
         }

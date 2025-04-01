@@ -65,9 +65,16 @@ export const prepareProductFormData = (data: CreateProductDto | UpdateProductDto
         formData.append('stock_quantity', data.stock_quantity.toString());
     }
 
-    // Boolean values need explicit conversion to string
-    if (data.is_featured !== undefined) {
-        formData.append('is_featured', data.is_featured.toString());
+    // CRITICAL: Boolean values need explicit conversion to string 'true' or 'false'
+    if ('is_featured' in data) {
+        const isFeatured = data.is_featured === true;
+        const featuredValue = isFeatured ? 'true' : 'false';
+        console.log('prepareProductFormData is_featured:', {
+            original: data.is_featured,
+            converted: featuredValue,
+            booleanCheck: data.is_featured === true
+        });
+        formData.append('is_featured', featuredValue);
     }
 
     // Handle category IDs array
@@ -124,30 +131,123 @@ export const productService = {
 
     create: async (data: CreateProductDto | FormData): Promise<Product> => {
         try {
-            const formData = data instanceof FormData ? data : prepareProductFormData(data);
+            // Handle both JSON and FormData
+            let requestData: FormData | CreateProductDto;
+            let contentType: string;
 
-            const response = await axiosInstance.post('/products', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data'
+            // If FormData was passed, use it directly for file uploads
+            if (data instanceof FormData) {
+                console.log('Using FormData for product creation (with file uploads)');
+                requestData = data;
+                contentType = 'multipart/form-data';
+
+                // Extra validation for is_featured in FormData
+                if (data.has('is_featured')) {
+                    const featuredValue = data.get('is_featured');
+                    console.log('Creation FormData is_featured:', featuredValue);
+
+                    // Ensure it's 'true' or 'false' string
+                    if (featuredValue !== 'true' && featuredValue !== 'false') {
+                        data.delete('is_featured');
+                        data.append('is_featured', String(featuredValue) === 'true' ? 'true' : 'false');
+                    }
                 }
-            });
+            }
+            // If JSON data was passed, ensure proper types
+            else {
+                console.log('Using JSON for product creation (no file uploads)');
+                requestData = {
+                    ...data,
+                    is_featured: data.is_featured === true
+                };
+                contentType = 'application/json';
+
+                console.log('JSON creation data:', {
+                    ...requestData,
+                    is_featured: requestData.is_featured,
+                    is_featured_type: typeof requestData.is_featured
+                });
+            }
+
+            // Make the appropriate request based on content type
+            let response;
+            if (contentType === 'multipart/form-data') {
+                response = await axiosInstance.post('/products', requestData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+            } else {
+                response = await axiosInstance.post('/products', requestData);
+            }
+
+            console.log('Create product response:', response.data);
             return response.data;
         } catch (error) {
+            console.error('Error in productService.create:', error);
             return handleError(error);
         }
     },
 
     update: async (id: number, data: UpdateProductDto | FormData): Promise<Product> => {
         try {
-            const formData = data instanceof FormData ? data : prepareProductFormData(data);
+            let requestData: any;
 
-            const response = await axiosInstance.patch(`/products/${id}`, formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data'
-                }
-            });
+            // If FormData was passed, extract and convert to a plain object
+            if (data instanceof FormData) {
+                console.log('Converting FormData to JSON object');
+                requestData = {};
+
+                // Extract all form fields to a plain object
+                Array.from(data.entries()).forEach(([key, value]) => {
+                    // Skip file uploads when using JSON
+                    if (value instanceof File) {
+                        console.log(`Skipping file upload for ${key} when using JSON`);
+                        return;
+                    }
+
+                    // Handle arrays (like category_ids[])
+                    if (key.endsWith('[]')) {
+                        const baseKey = key.substring(0, key.length - 2);
+                        if (!requestData[baseKey]) {
+                            requestData[baseKey] = [];
+                        }
+                        requestData[baseKey].push(value);
+                        return;
+                    }
+
+                    // Handle special fields with type conversion
+                    if (key === 'base_price' || key === 'sale_price' || key === 'stock_quantity') {
+                        requestData[key] = value === '' ? null : Number(value);
+                    } else if (key === 'is_featured') {
+                        // Ensure boolean conversion
+                        requestData[key] = value === 'true';
+                    } else {
+                        requestData[key] = value;
+                    }
+                });
+            } else {
+                // Use the data object directly, ensuring is_featured is properly typed
+                requestData = {
+                    ...data,
+                    is_featured: data.is_featured === true
+                };
+            }
+
+            // Ensure is_featured is always a boolean if provided
+            if ('is_featured' in requestData) {
+                requestData.is_featured = requestData.is_featured === true;
+                console.log('JSON update is_featured:', requestData.is_featured, typeof requestData.is_featured);
+            }
+
+            console.log('Sending JSON update request to:', `/products/${id}`);
+            console.log('JSON request data:', requestData);
+
+            const response = await axiosInstance.patch(`/products/${id}`, requestData);
+
+            console.log('Update response:', response.data);
+            console.log('Response is_featured:', response.data.is_featured);
             return response.data;
         } catch (error) {
+            console.error('Error in productService.update:', error);
             return handleError(error);
         }
     },

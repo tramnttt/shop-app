@@ -25,7 +25,9 @@ import {
   Select,
   SelectChangeEvent,
   Tooltip,
-  Chip
+  Chip,
+  Card,
+  CardMedia
 } from '@mui/material';
 import { 
   Add as AddIcon, 
@@ -33,18 +35,23 @@ import {
   Delete as DeleteIcon,
   Refresh as RefreshIcon,
   ArrowUpward as ArrowUpwardIcon,
-  ArrowDownward as ArrowDownwardIcon
+  ArrowDownward as ArrowDownwardIcon,
+  Image as ImageIcon
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { categoryService, Category, CreateCategoryDto, UpdateCategoryDto } from '../../services/categoryService';
+import { useCategories, useCreateCategory, useUpdateCategory, useDeleteCategory } from '../../hooks/useCategories';
+import { formatImageUrl } from '../../utils/imageUtils';
 
 const CategoriesPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [openDialog, setOpenDialog] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [formData, setFormData] = useState<CreateCategoryDto>({ name: '', description: null });
+  const [formData, setFormData] = useState<CreateCategoryDto>({ name: '', description: null, image_url: null });
   const [error, setError] = useState<string>('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   // Fetch categories
   const { data: categories = [], isLoading, isError, refetch } = useQuery({
@@ -54,7 +61,7 @@ const CategoriesPage: React.FC = () => {
 
   // Create category mutation
   const createMutation = useMutation({
-    mutationFn: categoryService.create,
+    mutationFn: (data: CreateCategoryDto & { imageFile?: File }) => categoryService.create(data, data.imageFile),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       handleCloseDialog();
@@ -66,8 +73,8 @@ const CategoriesPage: React.FC = () => {
 
   // Update category mutation
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: UpdateCategoryDto }) => 
-      categoryService.update(id, data),
+    mutationFn: ({ id, data, imageFile }: { id: number; data: UpdateCategoryDto; imageFile?: File }) => 
+      categoryService.update(id, data, imageFile),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       handleCloseDialog();
@@ -96,17 +103,33 @@ const CategoriesPage: React.FC = () => {
     });
   };
 
+  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+        setFormData(prev => ({ ...prev, image_url: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleOpenDialog = (category?: Category) => {
     if (category) {
       setEditingCategory(category);
       setFormData({
         name: category.name,
         description: category.description,
-        parent_category_id: category.parent_id
+        parent_category_id: category.parent_id,
+        image_url: category.image_url
       });
+      setImagePreview(category.image_url || null);
     } else {
       setEditingCategory(null);
-      setFormData({ name: '', description: null, parent_category_id: null });
+      setFormData({ name: '', description: null, parent_category_id: null, image_url: null });
+      setImagePreview(null);
     }
     setOpenDialog(true);
     setError('');
@@ -115,7 +138,9 @@ const CategoriesPage: React.FC = () => {
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setEditingCategory(null);
-    setFormData({ name: '', description: null, parent_category_id: null });
+    setFormData({ name: '', description: null, parent_category_id: null, image_url: null });
+    setSelectedImage(null);
+    setImagePreview(null);
     setError('');
   };
 
@@ -132,20 +157,32 @@ const CategoriesPage: React.FC = () => {
       return;
     }
 
-    if (editingCategory) {
-      const updateData: UpdateCategoryDto = {
-        name: formData.name.trim(),
-        description: formData.description?.trim() || null,
-        parent_category_id: formData.parent_category_id
-      };
-      updateMutation.mutate({ id: editingCategory.id, data: updateData });
-    } else {
-      const createData: CreateCategoryDto = {
-        name: formData.name.trim(),
-        description: formData.description?.trim() || null,
-        parent_category_id: formData.parent_category_id
-      };
-      createMutation.mutate(createData);
+    try {
+      if (editingCategory) {
+        const updateData: UpdateCategoryDto = {
+          name: formData.name.trim(),
+          description: formData.description?.trim() || null,
+          parent_category_id: formData.parent_category_id,
+        };
+        await updateMutation.mutateAsync({
+          id: editingCategory.id,
+          data: updateData,
+          imageFile: selectedImage || undefined
+        });
+      } else {
+        const createData: CreateCategoryDto = {
+          name: formData.name.trim(),
+          description: formData.description?.trim() || null,
+          parent_category_id: formData.parent_category_id,
+        };
+        await createMutation.mutateAsync({
+          ...createData,
+          imageFile: selectedImage || undefined
+        });
+      }
+      handleCloseDialog();
+    } catch (error: any) {
+      setError(error.response?.data?.message || 'Failed to save category');
     }
   };
 
@@ -240,6 +277,7 @@ const CategoriesPage: React.FC = () => {
           <TableHead>
             <TableRow>
               <TableCell>ID</TableCell>
+              <TableCell>Image</TableCell>
               <TableCell>Name</TableCell>
               <TableCell>Description</TableCell>
               <TableCell>Parent Category</TableCell>
@@ -250,12 +288,38 @@ const CategoriesPage: React.FC = () => {
           <TableBody>
             {sortedCategories.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} align="center">No categories found</TableCell>
+                <TableCell colSpan={7} align="center">No categories found</TableCell>
               </TableRow>
             ) : (
               sortedCategories.map((category, index) => (
                 <TableRow key={`category-${category.id || index}`}>
                   <TableCell>{category.id || 'Pending'}</TableCell>
+                  <TableCell>
+                    {category.image_url ? (
+                      <Card sx={{ width: 60, height: 60 }}>
+                        <CardMedia
+                          component="img"
+                          image={formatImageUrl(category.image_url)}
+                          alt={category.name}
+                          sx={{ objectFit: 'cover' }}
+                        />
+                      </Card>
+                    ) : (
+                      <Box
+                        sx={{
+                          width: 60,
+                          height: 60,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          bgcolor: 'grey.100',
+                          borderRadius: 1
+                        }}
+                      >
+                        <ImageIcon color="disabled" />
+                      </Box>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {category.name}
                     {categories.some(c => c.parent_id === category.id) && (
@@ -345,6 +409,50 @@ const CategoriesPage: React.FC = () => {
                   ))}
               </Select>
             </FormControl>
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="subtitle1" gutterBottom>
+                Category Image
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                {imagePreview ? (
+                  <Card sx={{ width: 100, height: 100 }}>
+                    <CardMedia
+                      component="img"
+                      image={imagePreview}
+                      alt="Category preview"
+                      sx={{ objectFit: 'cover' }}
+                    />
+                  </Card>
+                ) : (
+                  <Box
+                    sx={{
+                      width: 100,
+                      height: 100,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      bgcolor: 'grey.100',
+                      borderRadius: 1
+                    }}
+                  >
+                    <ImageIcon color="disabled" />
+                  </Box>
+                )}
+                <Button
+                  variant="outlined"
+                  component="label"
+                  startIcon={<ImageIcon />}
+                >
+                  Upload Image
+                  <input
+                    type="file"
+                    hidden
+                    accept="image/*"
+                    onChange={handleImageChange}
+                  />
+                </Button>
+              </Box>
+            </Box>
           </DialogContent>
           <DialogActions>
             <Button onClick={handleCloseDialog}>Cancel</Button>
