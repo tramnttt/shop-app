@@ -60,18 +60,26 @@ export class AddOrderItemPriceNew1743607645246 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE \`order_items\` ADD CONSTRAINT \`FK_9263386c35b6b242540f9493b00\` FOREIGN KEY (\`product_id\`) REFERENCES \`products\`(\`product_id\`) ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE \`orders\` ADD CONSTRAINT \`FK_a922b820eeef29ac1c6800e826a\` FOREIGN KEY (\`user_id\`) REFERENCES \`users\`(\`id\`) ON DELETE NO ACTION ON UPDATE NO ACTION`);
 
-        // Check if the 'price' column already exists in the order_items table
-        const tableColumns = await queryRunner.query(
-            `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
-             WHERE TABLE_SCHEMA = 'jewelry_shop' AND TABLE_NAME = 'order_items' AND COLUMN_NAME = 'price'`
-        );
+        // Skip foreign key checks to avoid constraint issues
+        await queryRunner.query(`SET FOREIGN_KEY_CHECKS=0`);
 
-        // Only add the price column if it doesn't exist
-        if (tableColumns.length === 0) {
-            await queryRunner.query(`ALTER TABLE \`order_items\` ADD \`price\` decimal(10,2) NOT NULL DEFAULT 0.00`);
-            console.log('Added price column to order_items table');
-        } else {
-            console.log('Price column already exists in order_items table');
+        try {
+            // Check if the 'price' column already exists in the order_items table
+            const tableColumns = await queryRunner.query(
+                `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_SCHEMA = 'jewelry_shop' AND TABLE_NAME = 'order_items' AND COLUMN_NAME = 'price'`
+            );
+
+            // Only add the price column if it doesn't exist
+            if (tableColumns.length === 0) {
+                await queryRunner.query(`ALTER TABLE \`order_items\` ADD \`price\` decimal(10,2) NOT NULL DEFAULT 0.00`);
+                console.log('Added price column to order_items table');
+            } else {
+                console.log('Price column already exists in order_items table');
+            }
+        } finally {
+            // Re-enable foreign key checks
+            await queryRunner.query(`SET FOREIGN_KEY_CHECKS=1`);
         }
     }
 
@@ -132,18 +140,26 @@ export class AddOrderItemPriceNew1743607645246 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE \`order_items\` ADD CONSTRAINT \`FK_145532db85752b29c57d2b7b1f1\` FOREIGN KEY (\`order_id\`) REFERENCES \`orders\`(\`id\`) ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE \`orders\` ADD CONSTRAINT \`FK_a922b820eeef29ac1c6800e826a\` FOREIGN KEY (\`user_id\`) REFERENCES \`users\`(\`id\`) ON DELETE NO ACTION ON UPDATE NO ACTION`);
 
-        // Check if the 'price' column exists before attempting to drop it
-        const tableColumns = await queryRunner.query(
-            `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
-             WHERE TABLE_SCHEMA = 'jewelry_shop' AND TABLE_NAME = 'order_items' AND COLUMN_NAME = 'price'`
-        );
+        // Skip foreign key checks to avoid constraint issues
+        await queryRunner.query(`SET FOREIGN_KEY_CHECKS=0`);
 
-        // Only drop the price column if it exists
-        if (tableColumns.length > 0) {
-            await queryRunner.query(`ALTER TABLE \`order_items\` DROP COLUMN \`price\``);
-            console.log('Dropped price column from order_items table');
-        } else {
-            console.log('Price column does not exist in order_items table');
+        try {
+            // Check if the 'price' column exists before attempting to drop it
+            const tableColumns = await queryRunner.query(
+                `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_SCHEMA = 'jewelry_shop' AND TABLE_NAME = 'order_items' AND COLUMN_NAME = 'price'`
+            );
+
+            // Only drop the price column if it exists
+            if (tableColumns.length > 0) {
+                await queryRunner.query(`ALTER TABLE \`order_items\` DROP COLUMN \`price\``);
+                console.log('Dropped price column from order_items table');
+            } else {
+                console.log('Price column does not exist in order_items table');
+            }
+        } finally {
+            // Re-enable foreign key checks
+            await queryRunner.query(`SET FOREIGN_KEY_CHECKS=1`);
         }
     }
 

@@ -12,7 +12,7 @@ export class Order {
         return this.id;
     }
 
-    @Column()
+    @Column({ nullable: true })
     customer_id: number;
 
     @Column('decimal', { precision: 10, scale: 2 })

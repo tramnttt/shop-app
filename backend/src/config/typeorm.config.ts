@@ -10,16 +10,7 @@ export const dataSourceOptions: DataSourceOptions = {
     username: process.env.DB_USERNAME || 'root',
     password: process.env.DB_PASSWORD || '17932486',
     database: process.env.DB_DATABASE || 'jewelry_shop',
-    entities: [
-        __dirname + '/../entities/*.entity{.ts,.js}',
-        __dirname + '/../users/entities/*.entity{.ts,.js}',
-        __dirname + '/../products/entities/*.entity{.ts,.js}',
-        __dirname + '/../categories/entities/*.entity{.ts,.js}',
-        __dirname + '/../orders/entities/*.entity{.ts,.js}',
-        __dirname + '/../payments/entities/*.entity{.ts,.js}',
-        __dirname + '/../reviews/entities/*.entity{.ts,.js}',
-        __dirname + '/../auth/entities/*.entity{.ts,.js}',
-    ],
+    entities: [__dirname + '/../**/*.entity{.ts,.js}'],
     migrations: [__dirname + '/../migrations/*{.ts,.js}'],
     synchronize: false,
 };

@@ -20,7 +20,8 @@ import { dataSourceOptions } from './config/typeorm.config';
         TypeOrmModule.forRoot({
             ...dataSourceOptions,
             autoLoadEntities: true,
-            synchronize: process.env.NODE_ENV === 'development',
+            synchronize: false,
+            migrationsRun: false,
         }),
         TypeOrmModule.forFeature([Customer]),
         ProductsModule,
