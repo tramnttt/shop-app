@@ -37,7 +37,23 @@ export class OrdersService {
             // Create the order
             const order = new Order();
             order.customer_id = customerId;
-            order.total_amount = createOrderDto.total;
+
+            console.log('total from createOrderDto:', createOrderDto.total);
+            // Ensure total_amount is properly set as a number
+            if (typeof createOrderDto.total !== 'number' || isNaN(createOrderDto.total)) {
+                throw new BadRequestException('Total must be a valid number');
+            }
+
+            // Calculate total ourselves from items instead of relying on the provided total
+            const calculatedTotal = createOrderDto.items.reduce((sum, item) => {
+                return sum + (item.price * item.quantity);
+            }, 0);
+
+            console.log('Calculated total from items:', calculatedTotal);
+
+            // Set both total and total_amount fields
+            order.total_amount = calculatedTotal;
+            order.total = calculatedTotal;
             order.status = 'PENDING';
 
             const savedOrder = await queryRunner.manager.save(order);
@@ -53,9 +69,11 @@ export class OrdersService {
                 }
 
                 const orderItem = queryRunner.manager.create(OrderItem, {
-                    order_id: savedOrder.order_id,
+                    order_id: savedOrder.id, // Use the id field instead of order_id
                     product_id: item.id,
+                    name: item.name || product.name || 'Unknown Product', // Set the name field
                     quantity: item.quantity,
+                    price: item.price, // Set the price field
                     unit_price: item.price,
                     total_price: item.price * item.quantity,
                 });
@@ -68,12 +86,12 @@ export class OrdersService {
 
             // Transform the response to match frontend expectations
             return {
-                id: savedOrder.order_id,
+                id: savedOrder.id, // Use the id field
                 userId: customerId,
-                orderNumber: `ORD-${savedOrder.order_id}-${Date.now().toString().slice(-6)}`,
+                orderNumber: `ORD-${savedOrder.id}-${Date.now().toString().slice(-6)}`,
                 status: savedOrder.status,
                 items: createOrderDto.items,
-                total: createOrderDto.total,
+                total: calculatedTotal, // Return the calculated total for consistency
                 orderDetails: createOrderDto.orderDetails,
                 paymentMethod: createOrderDto.paymentMethod,
                 paymentStatus: PaymentStatus.PENDING,
@@ -102,7 +120,7 @@ export class OrdersService {
 
     async getOrderById(orderId: number, customerId: number) {
         const order = await this.ordersRepository.findOne({
-            where: { order_id: orderId, customer_id: customerId },
+            where: { id: orderId, customer_id: customerId }, // Use the id field
             relations: ['orderItems', 'orderItems.product'],
         });
 
@@ -115,7 +133,7 @@ export class OrdersService {
 
     async cancelOrder(orderId: number, customerId: number) {
         const order = await this.ordersRepository.findOne({
-            where: { order_id: orderId, customer_id: customerId },
+            where: { id: orderId, customer_id: customerId }, // Use the id field
         });
 
         if (!order) {
@@ -142,8 +160,8 @@ export class OrdersService {
 
             return {
                 id: item.product_id,
-                name: item.product?.name || 'Unknown Product',
-                price: parseFloat(item.unit_price.toString()),
+                name: item.name || (item.product?.name || 'Unknown Product'), // Use item.name directly if available
+                price: item.price ? parseFloat(item.price.toString()) : parseFloat(item.unit_price.toString()), // Use price field if available
                 quantity: item.quantity,
                 image_url: imageUrl,
             };
@@ -154,12 +172,13 @@ export class OrdersService {
         const paymentMethod = PaymentMethod.COD; // Default to COD for now
 
         return {
-            id: order.order_id,
+            id: order.id, // Use the id field
             userId: order.customer_id,
-            orderNumber: `ORD-${order.order_id}`,
+            orderNumber: `ORD-${order.id}`, // Use the id field
             status: order.status,
             items,
-            total: parseFloat(order.total_amount.toString()),
+            // Use the total field directly if available, otherwise fall back to total_amount
+            total: order.total ? parseFloat(order.total.toString()) : parseFloat(order.total_amount.toString()),
             orderDetails: {
                 // This is a placeholder - in a real implementation, you would
                 // either store order details in a separate table or serialize them

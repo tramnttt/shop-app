@@ -5,7 +5,12 @@ import { Product } from './product.entity';
 @Entity('order_items')
 export class OrderItem {
     @PrimaryGeneratedColumn()
-    order_item_id: number;
+    id: number;
+
+    // Getter for backward compatibility
+    get order_item_id(): number {
+        return this.id;
+    }
 
     @Column()
     order_id: number;
@@ -13,8 +18,14 @@ export class OrderItem {
     @Column()
     product_id: number;
 
+    @Column()
+    name: string;
+
     @Column('int')
     quantity: number;
+
+    @Column('decimal', { precision: 10, scale: 2 })
+    price: number;
 
     @Column('decimal', { precision: 10, scale: 2 })
     unit_price: number;

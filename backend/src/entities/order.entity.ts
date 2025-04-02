@@ -1,17 +1,25 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, ManyToOne, JoinColumn, OneToMany, BeforeInsert, BeforeUpdate, AfterLoad } from 'typeorm';
 import { Customer } from './customer.entity';
 import { OrderItem } from './order-item.entity';
 
-@Entity()
+@Entity('orders')
 export class Order {
     @PrimaryGeneratedColumn()
-    order_id: number;
+    id: number;
+
+    // Getter for backward compatibility
+    get order_id(): number {
+        return this.id;
+    }
 
     @Column()
     customer_id: number;
 
     @Column('decimal', { precision: 10, scale: 2 })
     total_amount: number;
+
+    @Column('decimal', { precision: 10, scale: 2 })
+    total: number;
 
     @Column()
     status: string;

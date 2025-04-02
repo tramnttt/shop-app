@@ -2,7 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order } from '../entities/order.entity';
-import { PaymentStatus, QRCodeData } from '../orders/dto/create-order.dto';
+import { QRCodeData } from '../orders/dto/create-order.dto';
+
+// Define PaymentStatus enum from the DTO
+export enum PaymentStatus {
+    PENDING = 'pending',
+    PAID = 'paid',
+    FAILED = 'failed',
+}
 
 @Injectable()
 export class PaymentsService {
@@ -13,7 +20,7 @@ export class PaymentsService {
 
     async generateVietQR(orderId: number, amount: number): Promise<QRCodeData> {
         // Find the order to verify it exists
-        const order = await this.ordersRepository.findOne({ where: { order_id: orderId } });
+        const order = await this.ordersRepository.findOne({ where: { id: orderId } });
         if (!order) {
             throw new NotFoundException(`Order with ID ${orderId} not found`);
         }
@@ -34,7 +41,7 @@ export class PaymentsService {
 
     async generateMoMoQR(orderId: number): Promise<QRCodeData> {
         // Find the order to verify it exists and get the amount
-        const order = await this.ordersRepository.findOne({ where: { order_id: orderId } });
+        const order = await this.ordersRepository.findOne({ where: { id: orderId } });
         if (!order) {
             throw new NotFoundException(`Order with ID ${orderId} not found`);
         }
@@ -55,7 +62,7 @@ export class PaymentsService {
 
     async checkPaymentStatus(orderId: number): Promise<{ status: PaymentStatus }> {
         // Find the order to verify it exists
-        const order = await this.ordersRepository.findOne({ where: { order_id: orderId } });
+        const order = await this.ordersRepository.findOne({ where: { id: orderId } });
         if (!order) {
             throw new NotFoundException(`Order with ID ${orderId} not found`);
         }
