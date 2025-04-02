@@ -23,11 +23,12 @@ import {
   Remove,
   ShoppingBag
 } from '@mui/icons-material';
-import { Link } from 'react-router-dom';
-import { useCart } from '../context/CartContext';
+import { Link, useNavigate } from 'react-router-dom';
+import { useCart } from '../contexts/CartContext';
 
 const CartPage: React.FC = () => {
   const { items, removeFromCart, updateQuantity, totalPrice, clearCart } = useCart();
+  const navigate = useNavigate();
 
   const handleQuantityChange = (productId: number, event: React.ChangeEvent<HTMLInputElement>) => {
     const newQuantity = parseInt(event.target.value);
@@ -198,12 +199,13 @@ const CartPage: React.FC = () => {
                 fullWidth
                 sx={{ mt: 3 }}
                 disabled={items.length === 0}
+                onClick={() => navigate('/checkout')}
               >
                 Proceed to Checkout
               </Button>
               
               <Alert severity="info" sx={{ mt: 2 }}>
-                Checkout functionality is not implemented in this demo.
+                Secure checkout with multiple payment options available.
               </Alert>
             </Paper>
           </Grid>

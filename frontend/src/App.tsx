@@ -10,6 +10,13 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import CategoriesPage from './pages/admin/CategoriesPage';
 import AdminProductsPage from './pages/admin/ProductsPage';
+import BasketPage from './pages/BasketPage';
+import CheckoutPage from './pages/CheckoutPage';
+import VietQRPaymentPage from './pages/VietQRPaymentPage';
+import MoMoPaymentPage from './pages/MoMoPaymentPage';
+import OrderSuccessPage from './pages/OrderSuccessPage';
+import OrderStatusPage from './pages/OrderStatusPage';
+import OrdersPage from './pages/OrdersPage';
 import { useAuth } from './contexts/AuthContext';
 
 // Create theme
@@ -55,6 +62,13 @@ const App: React.FC = () => {
                         <Route path="/products/:id" element={<ProductDetailPage />} />
                         <Route path="/login" element={<LoginPage />} />
                         <Route path="/register" element={<RegisterPage />} />
+                        <Route path="/basket" element={<BasketPage />} />
+                        <Route path="/checkout" element={<CheckoutPage />} />
+                        <Route path="/payment/vietqr/:orderId" element={<VietQRPaymentPage />} />
+                        <Route path="/payment/momo/:orderId" element={<MoMoPaymentPage />} />
+                        <Route path="/orders/success" element={<OrderSuccessPage />} />
+                        <Route path="/orders/:orderId" element={<OrderStatusPage />} />
+                        <Route path="/orders" element={<OrdersPage />} />
                         
                         {/* Admin Routes */}
                         <Route 

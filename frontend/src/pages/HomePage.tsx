@@ -1,21 +1,25 @@
 import React from 'react';
 import { 
     Box, 
-    Typography, 
     Button, 
+    Card,
+    CardActions,
+    CardContent,
+    CardMedia,
+    CircularProgress,
     Container, 
     Grid, 
-    Card, 
-    CardMedia, 
-    CardContent,
-    CardActions,
-    CircularProgress,
-    Alert
+    Typography,
+    Alert,
+    useMediaQuery,
+    useTheme
 } from '@mui/material';
 import { Link } from 'react-router-dom';
-import { useProducts } from '../hooks/useProducts';
+import { useQuery } from '@tanstack/react-query';
 import { useCategories } from '../hooks/useCategories';
+import { useProducts } from '../hooks/useProducts';
 import { formatImageUrl } from '../utils/imageUtils';
+import { useBasket } from '../hooks/useBasket';
 
 const HomePage: React.FC = () => {
     // Fetch featured products from API
@@ -36,6 +40,25 @@ const HomePage: React.FC = () => {
         isError: categoriesError,
         error: categoriesErrorMsg
     } = useCategories();
+
+    const { addItem } = useBasket();
+    
+    const handleAddToCart = (product: any) => {
+        console.log('Adding product to cart:', product);
+        if (product && product.product_id) {
+            addItem({
+                id: product.product_id,
+                name: product.name,
+                price: parseFloat(String(product.sale_price || product.base_price)),
+                image_url: product.images && product.images.length > 0 
+                    ? product.images[0].image_url 
+                    : undefined
+            });
+        }
+    };
+
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     return (
         <Box>
@@ -170,6 +193,7 @@ const HomePage: React.FC = () => {
                                             color="primary"
                                             variant="contained"
                                             disabled={product.stock_quantity <= 0}
+                                            onClick={() => handleAddToCart(product)}
                                         >
                                             {product.stock_quantity > 0 ? 'Add to Cart' : 'Out of Stock'}
                                         </Button>

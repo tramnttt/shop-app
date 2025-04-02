@@ -18,7 +18,7 @@ import {
   CircularProgress
 } from '@mui/material';
 import { Person, Edit, Lock, Inventory } from '@mui/icons-material';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 interface TabPanelProps {

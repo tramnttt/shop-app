@@ -39,7 +39,7 @@ import {
   SortByAlpha
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { useCart } from '../contexts/CartContext';
+import { useBasket } from '../hooks/useBasket';
 import { SelectChangeEvent } from '@mui/material';
 import { useProducts } from '../hooks/useProducts';
 import { useCategories } from '../hooks/useCategories';
@@ -50,7 +50,7 @@ const ProductsPage: React.FC = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const { addToCart } = useCart();
+  const { addItem } = useBasket();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
   // State for filters and pagination
@@ -178,9 +178,18 @@ const ProductsPage: React.FC = () => {
     refetchProducts();
   };
   
-  const handleAddToCart = (product: any, event: React.MouseEvent) => {
+  const handleAddToBasket = (product: any, event: React.MouseEvent) => {
     event.stopPropagation();
-    addToCart(product, 1);
+    if (product && product.product_id) {
+      addItem({
+        id: product.product_id,
+        name: product.name,
+        price: parseFloat(String(product.sale_price || product.base_price)),
+        image_url: product.images && product.images.length > 0 
+          ? product.images[0].image_url 
+          : undefined
+      });
+    }
   };
   
   const renderFilters = () => (

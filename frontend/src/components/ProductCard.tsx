@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardMedia, Typography, Box, Rating, Button, CardActionArea, Chip } from '@mui/material';
 import { ShoppingCart, Star as StarIcon } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
-import { useCart } from '../contexts/CartContext';
+import { useBasket } from '../hooks/useBasket';
 import { formatImageUrl, getPrimaryImageUrl } from '../utils/imageUtils';
 
 interface ProductCardProps {
@@ -11,7 +11,7 @@ interface ProductCardProps {
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) => {
-  const { addToCart } = useCart();
+  const { addItem } = useBasket();
   
   // Use utility function to get formatted image URL
   const formattedImageUrl = getPrimaryImageUrl(product.images);
@@ -25,10 +25,19 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) =
     ? Math.round(((product.base_price - product.sale_price) / product.base_price) * 100)
     : 0;
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToBasket = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    addToCart(product, 1);
+    console.log('Adding to basket from ProductCard:', product);
+    
+    addItem({
+      id: product.product_id,
+      name: product.name,
+      price: parseFloat(String(product.sale_price || product.base_price)),
+      image_url: product.images && product.images.length > 0 
+        ? product.images[0].image_url 
+        : undefined
+    });
   };
 
   return (
@@ -115,9 +124,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) =
                 size="small"
                 variant="contained"
                 color="primary"
-                onClick={handleAddToCart}
+                onClick={handleAddToBasket}
                 startIcon={<ShoppingCart />}
                 sx={{ minWidth: 'auto' }}
+                disabled={product.stock_quantity <= 0}
               >
                 Add
               </Button>

@@ -44,7 +44,7 @@ import {
   Support,
   ArrowBack
 } from '@mui/icons-material';
-import { useCart } from '../contexts/CartContext';
+import { useBasket } from '../hooks/useBasket';
 import { productService } from '../services/productService';
 import { formatImageUrl } from '../utils/imageUtils';
 import { useProduct } from '../hooks/useProducts';
@@ -123,20 +123,13 @@ const ProductDetailPage: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { id } = useParams<{ id: string }>();
-  const { addToCart } = useCart();
+  const { data: product, isLoading, isError, error, refetch } = useProduct(Number(id));
+  const { addItem } = useBasket();
   const [quantity, setQuantity] = useState(1);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [isAddingToBasket, setIsAddingToBasket] = useState(false);
   
-  // Use the useProduct hook to fetch product data
-  const { 
-    data: product, 
-    isLoading, 
-    error, 
-    isError,
-    refetch
-  } = useProduct(id ? parseInt(id) : 0);
-
   const handleQuantityChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(event.target.value);
     if (value > 0 && product && hasStock(product) && value <= product.stock_quantity) {
@@ -144,20 +137,42 @@ const ProductDetailPage: React.FC = () => {
     }
   };
 
-  const handleAddToCart = () => {
-    if (product) {
-      addToCart(product, quantity);
+  const handleAddToBasket = () => {
+    if (!product) {
+      console.log('Cannot add to basket: Product is null or undefined');
+      return;
     }
+    
+    const productToAdd = {
+      id: product.product_id,
+      name: product.name,
+      price: parseFloat(String(product.base_price)),
+      image_url: product.images && product.images.length > 0 ? product.images[0].image_url : undefined
+    };
+    
+    console.log('Adding product to basket:', productToAdd);
+    
+    setIsAddingToBasket(true);
+    
+    // Add a delay to show the loading state
+    setTimeout(() => {
+      try {
+        addItem(productToAdd);
+        console.log('Product added to basket successfully');
+      } catch (error) {
+        console.error('Error adding product to basket:', error);
+      } finally {
+        setIsAddingToBasket(false);
+      }
+    }, 300);
   };
 
   // Set first or primary image as selected when product is loaded
   React.useEffect(() => {
     if (product) {
       const images = getProductImages(product);
-      if (images.length > 0) {
-        const primaryIndex = images.findIndex(img => img.is_primary);
-        setSelectedImageIndex(primaryIndex !== -1 ? primaryIndex : 0);
-      }
+      const primaryIndex = images.findIndex(img => img.is_primary);
+      setSelectedImageIndex(primaryIndex !== -1 ? primaryIndex : 0);
     }
   }, [product]);
 
@@ -506,8 +521,8 @@ const ProductDetailPage: React.FC = () => {
                   variant="contained"
                   startIcon={<AddShoppingCart />}
                   size="large"
-                  onClick={handleAddToCart}
-                  disabled={!hasStock(product)}
+                  onClick={handleAddToBasket}
+                  disabled={!hasStock(product) || isAddingToBasket}
                   sx={{ 
                     px: 4,
                     py: 1.5,
@@ -516,7 +531,7 @@ const ProductDetailPage: React.FC = () => {
                     fontWeight: 600
                   }}
                 >
-                  Add to Cart
+                  {isAddingToBasket ? 'Adding...' : 'Add to Cart'}
                 </Button>
               </Stack>
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Paper,
@@ -23,7 +23,8 @@ import {
   Alert,
   CircularProgress,
   Card,
-  CardContent
+  CardContent,
+  CardMedia
 } from '@mui/material';
 import {
   Home,
@@ -31,11 +32,15 @@ import {
   ShoppingBag,
   CheckCircleOutline
 } from '@mui/icons-material';
-import { useCart } from '../context/CartContext';
 import { useNavigate } from 'react-router-dom';
+import { PaymentMethod } from '../types/order';
+import { useOrder } from '../hooks/useOrder';
+import { formatImageUrl } from '../utils/imageUtils';
+import { useBasket } from '../hooks/useBasket';
+import { BasketItem } from '../types/basket';
 
 // Stepper steps
-const steps = ['Shipping', 'Payment', 'Review'];
+const steps = ['Review Order', 'Shipping Information', 'Payment Method', 'Confirmation'];
 
 const shippingMethods = [
   { id: 'standard', name: 'Standard Shipping', price: 5.99, days: '5-7 business days' },
@@ -45,12 +50,14 @@ const shippingMethods = [
 
 const paymentMethods = [
   { id: 'credit_card', name: 'Credit Card' },
-  { id: 'paypal', name: 'PayPal' }
+  { id: 'momo', name: 'MoMo E-Wallet' },
+  { id: 'cod', name: 'Cash On Delivery' }
 ];
 
-const CheckoutPage: React.FC = () => {
-  const { items, totalPrice, clearCart } = useCart();
+const CheckoutPage = (): JSX.Element => {
   const navigate = useNavigate();
+  const { basket, clearBasket } = useBasket();
+  const { createOrderMutation } = useOrder();
   const [activeStep, setActiveStep] = useState(0);
   const [processing, setProcessing] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
@@ -84,7 +91,7 @@ const CheckoutPage: React.FC = () => {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   
   // Calculate totals
-  const subtotal = totalPrice;
+  const subtotal = basket.total;
   const selectedShipping = shippingMethods.find(sm => sm.id === shippingInfo.shippingMethod) || shippingMethods[0];
   const shippingCost = selectedShipping.price;
   const taxRate = 0.08; // 8% tax rate
@@ -169,20 +176,55 @@ const CheckoutPage: React.FC = () => {
   const handlePlaceOrder = async () => {
     setProcessing(true);
     
-    // Simulate API call to create order
     try {
-      // await createOrder({ items: cartItems, shipping: shippingInfo, payment: paymentInfo });
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulating API delay
+      // Create an order using the order service
+      const orderData = {
+        orderDetails: {
+          fullName: `${shippingInfo.firstName} ${shippingInfo.lastName}`,
+          email: shippingInfo.email,
+          phone: shippingInfo.phone,
+          address: shippingInfo.address + (shippingInfo.apartment ? `, ${shippingInfo.apartment}` : ''),
+          city: shippingInfo.city,
+          postalCode: shippingInfo.zipCode,
+          notes: ''
+        },
+        paymentMethod: getPaymentMethod(paymentInfo.paymentMethod)
+      };
       
-      // Generate random order number
-      const randomOrderNumber = `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
-      setOrderNumber(randomOrderNumber);
-      setOrderComplete(true);
-      clearCart();
+      createOrderMutation.mutate(orderData, {
+        onSuccess: (order) => {
+          setOrderComplete(true);
+          setOrderNumber(order.orderNumber || order.id?.toString() || '');
+          clearBasket();
+          setProcessing(false);
+          
+          // If payment method is MoMo, redirect to MoMo payment page
+          if (paymentInfo.paymentMethod === 'momo' && order.id) {
+            navigate(`/payment/momo/${order.id}`);
+          }
+        },
+        onError: (error) => {
+          console.error('Error creating order:', error);
+          setProcessing(false);
+        }
+      });
     } catch (error) {
       console.error('Error placing order:', error);
-    } finally {
       setProcessing(false);
+    }
+  };
+  
+  // Helper function to get the payment method enum value
+  const getPaymentMethod = (paymentMethodId: string): PaymentMethod => {
+    switch (paymentMethodId) {
+      case 'credit_card':
+        return PaymentMethod.VIETQR;
+      case 'momo':
+        return PaymentMethod.MOMO;
+      case 'cod':
+        return PaymentMethod.COD;
+      default:
+        return PaymentMethod.COD;
     }
   };
   
@@ -542,7 +584,7 @@ const CheckoutPage: React.FC = () => {
           <Typography variant="body1">
             {paymentInfo.paymentMethod === 'credit_card' 
               ? `Credit Card (ending in ${paymentInfo.cardNumber.slice(-4)})` 
-              : 'PayPal'}
+              : paymentInfo.paymentMethod === 'momo' ? 'MoMo E-Wallet' : 'Cash On Delivery'}
           </Typography>
           
           {paymentInfo.sameAsShipping ? (
@@ -565,7 +607,7 @@ const CheckoutPage: React.FC = () => {
       </Typography>
       
       <List disablePadding>
-        {items.map((item) => (
+        {basket.items.map((item: BasketItem) => (
           <ListItem key={item.id} sx={{ py: 1, px: 0 }}>
             <Box sx={{ display: 'flex', flexDirection: 'row', alignItems: 'center', width: '100%' }}>
               <Box 
@@ -579,7 +621,7 @@ const CheckoutPage: React.FC = () => {
               >
                 <Box
                   component="img"
-                  src={item.imageUrl || 'https://placehold.co/400x300?text=No+Image'}
+                  src={item.image_url || 'https://placehold.co/400x300?text=No+Image'}
                   alt={item.name}
                   sx={{ width: '100%', height: '100%', objectFit: 'contain' }}
                 />
@@ -636,6 +678,14 @@ const CheckoutPage: React.FC = () => {
     </Box>
   );
   
+  useEffect(() => {
+    if (orderComplete) {
+      console.log("Order complete detected, clearing basket. Current basket:", basket);
+      clearBasket();
+      console.log("Basket cleared in success step of checkout");
+    }
+  }, [orderComplete, clearBasket, basket]);
+  
   const renderSuccessStep = () => (
     <Box sx={{ mt: 4, textAlign: 'center' }}>
       <CheckCircleOutline sx={{ fontSize: 60, color: 'success.main', mb: 2 }} />
@@ -683,9 +733,14 @@ const CheckoutPage: React.FC = () => {
       </Typography>
       
       <Button 
-        variant="contained" 
-        size="large" 
-        onClick={() => navigate('/products')}
+        variant="contained"
+        size="large"
+        onClick={() => {
+          console.log("Continue Shopping clicked. Current basket:", basket);
+          clearBasket();
+          console.log("Basket cleared on Continue Shopping click");
+          navigate('/products');
+        }}
         sx={{ mt: 2 }}
       >
         Continue Shopping
@@ -708,15 +763,15 @@ const CheckoutPage: React.FC = () => {
     }
   };
   
-  if (items.length === 0 && !orderComplete) {
+  if (basket.items.length === 0 && !orderComplete) {
     return (
       <Container maxWidth="md" sx={{ py: 8, textAlign: 'center' }}>
         <ShoppingBag sx={{ fontSize: 60, color: 'grey.400', mb: 2 }} />
         <Typography variant="h5" gutterBottom>
-          Your cart is empty
+          Your basket is empty
         </Typography>
         <Typography variant="body1" color="text.secondary" paragraph>
-          You need to add items to your cart before proceeding to checkout.
+          You need to add items to your basket before proceeding to checkout.
         </Typography>
         <Button 
           variant="contained" 
@@ -800,7 +855,7 @@ const CheckoutPage: React.FC = () => {
               </Typography>
               
               <List disablePadding>
-                {items.map((item) => (
+                {basket.items.map((item: BasketItem) => (
                   <ListItem key={item.id} sx={{ py: 1, px: 0 }}>
                     <ListItemText
                       primary={item.name}

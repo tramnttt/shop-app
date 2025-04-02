@@ -24,10 +24,12 @@ import {
     Dashboard, 
     CategoryOutlined, 
     Inventory, 
-    AdminPanelSettings 
+    AdminPanelSettings,
+    ShoppingBag
 } from '@mui/icons-material';
 import { Menu as MenuIcon } from '@mui/icons-material';
 import { useTheme, useMediaQuery } from '@mui/material';
+import BasketIcon from './BasketIcon';
 
 export const Header: React.FC = () => {
     const { user, isAuthenticated, logout } = useAuth();
@@ -221,6 +223,11 @@ export const Header: React.FC = () => {
 
                     <Box sx={{ flexGrow: { xs: 0, md: 1 } }} />
 
+                    {/* Basket icon shown for all users */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', marginRight: 1 }}>
+                        <BasketIcon />
+                    </Box>
+
                     {isAuthenticated ? (
                         <>
                             <Box sx={{ display: 'flex', alignItems: 'center', marginRight: 1 }}>
@@ -290,6 +297,12 @@ export const Header: React.FC = () => {
                                     </Box>
                                 </MenuItem>
                                 <Divider />
+                                <MenuItem component={RouterLink} to="/orders">
+                                    <ListItemIcon>
+                                        <ShoppingBag fontSize="small" />
+                                    </ListItemIcon>
+                                    My Orders
+                                </MenuItem>
                                 {isAdmin && (
                                     <MenuItem component={RouterLink} to="/admin">
                                         <ListItemIcon>
