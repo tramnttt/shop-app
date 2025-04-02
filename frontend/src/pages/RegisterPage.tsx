@@ -13,9 +13,11 @@ import {
   Alert
 } from '@mui/material';
 import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
+import { useAuthMutation } from '../hooks/useAuthMutation';
 
 const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
+  const { register, isLoading, error: apiError } = useAuthMutation();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -24,8 +26,7 @@ const RegisterPage: React.FC = () => {
     confirmPassword: '',
     phone: ''
   });
-  const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validationError, setValidationError] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -37,48 +38,44 @@ const RegisterPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError('');
+    setValidationError('');
     
     // Basic validation
     if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
-      setError('Please fill in all required fields');
+      setValidationError('Please fill in all required fields');
       return;
     }
 
     // Password match validation
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setValidationError('Passwords do not match');
       return;
     }
 
     // Email format validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
-      setError('Please enter a valid email address');
+      setValidationError('Please enter a valid email address');
       return;
     }
 
     // Password length validation
     if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long');
+      setValidationError('Password must be at least 6 characters long');
       return;
     }
-
-    setIsSubmitting(true);
     
     try {
-      // In a real application, this would call your auth service
-      // await register(formData);
-      console.log('Registering with:', formData);
-      
-      // Mock registration success - would come from your API in a real application
-      setTimeout(() => {
-        setIsSubmitting(false);
-        navigate('/');
-      }, 1000);
+      // Call the register function from useAuthMutation
+      register({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        password: formData.password,
+        phone: formData.phone || undefined
+      });
     } catch (err) {
-      setError('Registration failed. Please try again.');
-      setIsSubmitting(false);
+      console.error('Registration error:', err);
     }
   };
 
@@ -118,9 +115,15 @@ const RegisterPage: React.FC = () => {
           </Typography>
         </Box>
 
-        {error && (
+        {validationError && (
           <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
-            {error}
+            {validationError}
+          </Alert>
+        )}
+
+        {apiError && (
+          <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
+            {apiError instanceof Error ? apiError.message : 'Registration failed. Please try again.'}
           </Alert>
         )}
 
@@ -137,6 +140,7 @@ const RegisterPage: React.FC = () => {
                 autoFocus
                 value={formData.firstName}
                 onChange={handleChange}
+                disabled={isLoading}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -149,6 +153,7 @@ const RegisterPage: React.FC = () => {
                 autoComplete="family-name"
                 value={formData.lastName}
                 onChange={handleChange}
+                disabled={isLoading}
               />
             </Grid>
             <Grid item xs={12}>
@@ -161,6 +166,7 @@ const RegisterPage: React.FC = () => {
                 autoComplete="email"
                 value={formData.email}
                 onChange={handleChange}
+                disabled={isLoading}
               />
             </Grid>
             <Grid item xs={12}>
@@ -174,6 +180,7 @@ const RegisterPage: React.FC = () => {
                 autoComplete="new-password"
                 value={formData.password}
                 onChange={handleChange}
+                disabled={isLoading}
               />
             </Grid>
             <Grid item xs={12}>
@@ -186,6 +193,7 @@ const RegisterPage: React.FC = () => {
                 id="confirmPassword"
                 value={formData.confirmPassword}
                 onChange={handleChange}
+                disabled={isLoading}
               />
             </Grid>
             <Grid item xs={12}>
@@ -198,6 +206,7 @@ const RegisterPage: React.FC = () => {
                 autoComplete="tel"
                 value={formData.phone}
                 onChange={handleChange}
+                disabled={isLoading}
               />
             </Grid>
           </Grid>
@@ -206,9 +215,9 @@ const RegisterPage: React.FC = () => {
             fullWidth
             variant="contained"
             sx={{ mt: 3, mb: 2 }}
-            disabled={isSubmitting}
+            disabled={isLoading}
           >
-            {isSubmitting ? <CircularProgress size={24} /> : 'Sign Up'}
+            {isLoading ? <CircularProgress size={24} /> : 'Sign Up'}
           </Button>
           <Grid container justifyContent="flex-end">
             <Grid item>

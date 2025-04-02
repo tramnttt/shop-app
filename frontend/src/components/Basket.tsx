@@ -23,13 +23,20 @@ import {
 import { useBasket } from '../hooks/useBasket';
 import { formatImageUrl } from '../utils/imageUtils';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 const Basket: React.FC = () => {
     const { basket, removeItem, updateQuantity } = useBasket();
     const navigate = useNavigate();
+    const { isAuthenticated } = useAuth();
 
     // Function to handle checkout button click
     const handleCheckout = () => {
+        if (!isAuthenticated) {
+            // Store the current path to redirect back after login
+            navigate('/login', { state: { from: { pathname: '/checkout' } } });
+            return;
+        }
         console.log("Navigating to checkout page");
         navigate('/checkout');
     };

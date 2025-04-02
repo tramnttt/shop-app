@@ -5,6 +5,9 @@ import { databaseConfig } from './config/database.config';
 import { ProductsModule } from './products/products.module';
 import { CategoriesModule } from './categories/categories.module';
 import { AuthModule } from './auth/auth.module';
+import { ReviewsModule } from './reviews/reviews.module';
+import { OrdersModule } from './orders/orders.module';
+import { PaymentsModule } from './payments/payments.module';
 import { AdminSeeder } from './database/seeders/admin.seeder';
 import { Customer } from './entities/customer.entity';
 
@@ -19,6 +22,9 @@ import { Customer } from './entities/customer.entity';
         ProductsModule,
         CategoriesModule,
         AuthModule,
+        ReviewsModule,
+        OrdersModule,
+        PaymentsModule,
     ],
     controllers: [],
     providers: [AdminSeeder],

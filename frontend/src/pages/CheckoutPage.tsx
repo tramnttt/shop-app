@@ -33,11 +33,16 @@ import {
   CheckCircleOutline
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { PaymentMethod } from '../types/order';
+import { PaymentMethod, Order } from '../types/order';
 import { useOrder } from '../hooks/useOrder';
 import { formatImageUrl } from '../utils/imageUtils';
 import { useBasket } from '../hooks/useBasket';
 import { BasketItem } from '../types/basket';
+import { useAuth } from '../contexts/AuthContext';
+import { useCustomer } from '../hooks/useCustomer';
+import { authService, UserProfile } from '../services/auth.service';
+import OrderSuccessModal from '../components/OrderSuccessModal';
+import { orderService } from '../services/orderService';
 
 // Stepper steps
 const steps = ['Review Order', 'Shipping Information', 'Payment Method', 'Confirmation'];
@@ -56,12 +61,94 @@ const paymentMethods = [
 
 const CheckoutPage = (): JSX.Element => {
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
+  const { customer, isLoading: isLoadingCustomer } = useCustomer();
   const { basket, clearBasket } = useBasket();
-  const { createOrderMutation } = useOrder();
+  const { 
+    createOrderMutation, 
+    showSuccessModal, 
+    successOrderData, 
+    closeSuccessModal,
+    setSuccessOrderData,
+    setShowSuccessModal
+  } = useOrder();
   const [activeStep, setActiveStep] = useState(0);
   const [processing, setProcessing] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
   const [orderNumber, setOrderNumber] = useState('');
+  const [profileData, setProfileData] = useState<UserProfile | null>(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  
+  // Manual modal tracking for debugging
+  const [modalTracking, setModalTracking] = useState({ 
+    modalShouldBeOpen: false, 
+    modalOrder: null as Order | null
+  });
+  
+  // Check authentication on component mount
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: { pathname: '/checkout' } } });
+    }
+  }, [isAuthenticated, navigate]);
+  
+  // Log modal state changes for debugging
+  useEffect(() => {
+    console.log('Success modal state changed:', { 
+      showSuccessModal, 
+      successOrderData,
+      orderComplete,
+      activeStep,
+      manualTracking: modalTracking
+    });
+    
+    // Sync our manual tracking with the hook state
+    if (showSuccessModal !== modalTracking.modalShouldBeOpen) {
+      console.log('Updating local modal tracking to match hook state');
+      setModalTracking({
+        modalShouldBeOpen: showSuccessModal,
+        modalOrder: successOrderData
+      });
+    }
+  }, [showSuccessModal, successOrderData, orderComplete, activeStep, modalTracking]);
+  
+  // Fetch user profile data when component mounts
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (isAuthenticated) {
+        setIsLoadingProfile(true);
+        try {
+          const profile = await authService.getCurrentUser();
+          console.log('Fetched user profile:', profile);
+          setProfileData(profile);
+          
+          // Pre-fill shipping info with user data if it's empty
+          if (shippingInfo.firstName === '' && shippingInfo.lastName === '') {
+            setShippingInfo(prevState => ({
+              ...prevState,
+              firstName: profile.firstName || '',
+              lastName: profile.lastName || '',
+              email: profile.email || '',
+              phone: profile.phone || ''
+            }));
+          }
+        } catch (error) {
+          console.error('Error fetching user profile:', error);
+        } finally {
+          setIsLoadingProfile(false);
+        }
+      }
+    };
+    
+    fetchUserProfile();
+  }, [isAuthenticated]);
+  
+  // Handle success modal close - don't advance to final step
+  const handleSuccessModalClose = () => {
+    console.log('Modal closed manually by user');
+    closeSuccessModal();
+    // We no longer automatically advance to the next step
+  };
   
   // Form states
   const [shippingInfo, setShippingInfo] = useState({
@@ -165,7 +252,52 @@ const CheckoutPage = (): JSX.Element => {
     }
     
     if (isValid || activeStep === 2) {
-      setActiveStep((prevActiveStep) => prevActiveStep + 1);
+      // Create the order when moving from Payment Method (step 1) to Review (step 2)
+      if (activeStep === 1) {
+        setProcessing(true);
+        
+        try {
+          // Create an order using the order service
+          const orderData = {
+            orderDetails: {
+              fullName: `${shippingInfo.firstName} ${shippingInfo.lastName}`,
+              email: shippingInfo.email,
+              phone: shippingInfo.phone,
+              address: shippingInfo.address + (shippingInfo.apartment ? `, ${shippingInfo.apartment}` : ''),
+              city: shippingInfo.city,
+              postalCode: shippingInfo.zipCode,
+              notes: ''
+            },
+            paymentMethod: getPaymentMethod(paymentInfo.paymentMethod),
+            user: {
+              firstName: profileData?.firstName || customer?.firstName || user?.firstName || '',
+              lastName: profileData?.lastName || customer?.lastName || user?.lastName || '',
+              email: profileData?.email || customer?.email || user?.email || '',
+              phone: profileData?.phone || customer?.phone || shippingInfo.phone
+            }
+          };
+          
+          createOrderMutation.mutate(orderData, {
+            onSuccess: (order) => {
+              setOrderNumber(order.orderNumber || order.id?.toString() || '');
+              setProcessing(false);
+              
+              // Go to review step but don't navigate away yet
+              setActiveStep((prevActiveStep) => prevActiveStep + 1);
+            },
+            onError: (error) => {
+              console.error('Error creating order:', error);
+              setProcessing(false);
+            }
+          });
+        } catch (error) {
+          console.error('Error placing order:', error);
+          setProcessing(false);
+        }
+      } else {
+        // For other steps, just move forward
+        setActiveStep((prevActiveStep) => prevActiveStep + 1);
+      }
     }
   };
   
@@ -174,42 +306,73 @@ const CheckoutPage = (): JSX.Element => {
   };
   
   const handlePlaceOrder = async () => {
+    // The order has already been created, just finalize
     setProcessing(true);
     
-    try {
-      // Create an order using the order service
-      const orderData = {
-        orderDetails: {
-          fullName: `${shippingInfo.firstName} ${shippingInfo.lastName}`,
-          email: shippingInfo.email,
-          phone: shippingInfo.phone,
-          address: shippingInfo.address + (shippingInfo.apartment ? `, ${shippingInfo.apartment}` : ''),
-          city: shippingInfo.city,
-          postalCode: shippingInfo.zipCode,
-          notes: ''
-        },
-        paymentMethod: getPaymentMethod(paymentInfo.paymentMethod)
-      };
-      
-      createOrderMutation.mutate(orderData, {
-        onSuccess: (order) => {
-          setOrderComplete(true);
-          setOrderNumber(order.orderNumber || order.id?.toString() || '');
-          clearBasket();
-          setProcessing(false);
-          
-          // If payment method is MoMo, redirect to MoMo payment page
-          if (paymentInfo.paymentMethod === 'momo' && order.id) {
-            navigate(`/payment/momo/${order.id}`);
+    // For COD, use the order data we already have to show success modal
+    if (paymentInfo.paymentMethod === 'cod') {
+      try {
+        console.log('COD payment selected in handlePlaceOrder, orderId:', orderNumber);
+        if (orderNumber) {
+          const orderId = parseInt(orderNumber, 10);
+          if (!isNaN(orderId)) {
+            // Get the full order data to display in the modal
+            const order = await orderService.getOrderById(orderId);
+            console.log('Retrieved order data for success modal:', order);
+            
+            // Update our manual tracking
+            setModalTracking({
+              modalShouldBeOpen: true,
+              modalOrder: order
+            });
+            
+            // This will trigger the success modal from the hook
+            console.log('Setting success order data and modal visibility...');
+            setSuccessOrderData(order);
+            setShowSuccessModal(true);
+            
+            // Immediately check if the modal state was updated
+            setTimeout(() => {
+              console.log('After setting modal state:', { 
+                hookState: { showSuccessModal, successOrderData },
+                manualTracking: { 
+                  modalShouldBeOpen: true, 
+                  modalOrder: order 
+                }
+              });
+            }, 0);
+            
+            // Don't set orderComplete here to prevent auto-advancing
           }
-        },
-        onError: (error) => {
-          console.error('Error creating order:', error);
-          setProcessing(false);
         }
-      });
-    } catch (error) {
-      console.error('Error placing order:', error);
+        
+        // Continue with clearing the basket for COD orders
+        // but don't mark the order as complete to avoid advancing to final step
+        clearBasket();
+        setProcessing(false);
+      } catch (error) {
+        console.error('Error handling COD order completion:', error);
+        setProcessing(false);
+      }
+    } else if (paymentInfo.paymentMethod === 'momo' && orderNumber) {
+      // For MoMo, redirect to MoMo payment page
+      const orderId = parseInt(orderNumber, 10);
+      if (!isNaN(orderId)) {
+        navigate(`/payment/momo/${orderId}`);
+      } else {
+        console.error('Invalid order ID');
+        setProcessing(false);
+      }
+    } else if (paymentInfo.paymentMethod === 'credit_card' && orderNumber) {
+      // For credit card (VIETQR), redirect to VietQR payment page
+      const orderId = parseInt(orderNumber, 10);
+      if (!isNaN(orderId)) {
+        navigate(`/payment/vietqr/${orderId}`);
+      } else {
+        console.error('Invalid order ID');
+        setProcessing(false);
+      }
+    } else {
       setProcessing(false);
     }
   };
@@ -678,14 +841,6 @@ const CheckoutPage = (): JSX.Element => {
     </Box>
   );
   
-  useEffect(() => {
-    if (orderComplete) {
-      console.log("Order complete detected, clearing basket. Current basket:", basket);
-      clearBasket();
-      console.log("Basket cleared in success step of checkout");
-    }
-  }, [orderComplete, clearBasket, basket]);
-  
   const renderSuccessStep = () => (
     <Box sx={{ mt: 4, textAlign: 'center' }}>
       <CheckCircleOutline sx={{ fontSize: 60, color: 'success.main', mb: 2 }} />
@@ -736,9 +891,7 @@ const CheckoutPage = (): JSX.Element => {
         variant="contained"
         size="large"
         onClick={() => {
-          console.log("Continue Shopping clicked. Current basket:", basket);
-          clearBasket();
-          console.log("Basket cleared on Continue Shopping click");
+          console.log("Continue Shopping clicked.");
           navigate('/products');
         }}
         sx={{ mt: 2 }}
@@ -897,6 +1050,16 @@ const CheckoutPage = (): JSX.Element => {
           </Grid>
         )}
       </Grid>
+
+      {/* Order Success Modal */}
+      <OrderSuccessModal 
+        open={showSuccessModal || modalTracking.modalShouldBeOpen} 
+        order={successOrderData || modalTracking.modalOrder} 
+        onClose={handleSuccessModalClose} 
+      />
+      <Typography variant="caption" sx={{ display: 'none' }}>
+        Debug info - Modal should be: {(showSuccessModal || modalTracking.modalShouldBeOpen) ? 'VISIBLE' : 'HIDDEN'}
+      </Typography>
     </Container>
   );
 };

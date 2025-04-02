@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -76,5 +76,27 @@ export class AuthService {
         const { password_hash, ...result } = savedUser;
 
         return this.login(result);
+    }
+
+    async getProfile(userId: number) {
+        // Find user by ID with more efficient query
+        const user = await this.customersRepository.findOne({
+            select: ['customer_id', 'email', 'first_name', 'last_name', 'phone', 'role'], // Only select needed fields
+            where: { customer_id: userId }
+        });
+
+        if (!user) {
+            throw new NotFoundException(`User with ID ${userId} not found`);
+        }
+
+        // Return directly mapped result without password_hash extraction
+        return {
+            id: user.customer_id,
+            email: user.email,
+            firstName: user.first_name,
+            lastName: user.last_name,
+            phone: user.phone,
+            role: user.role || 'customer'
+        };
     }
 } 

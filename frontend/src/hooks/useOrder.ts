@@ -5,19 +5,33 @@ import { Order, OrderDetails, PaymentMethod, PaymentStatus, OrderStatus, QRCodeD
 import { useBasket } from './useBasket';
 import { useState } from 'react';
 
+export interface UserInfo {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+}
+
 export const useOrder = () => {
     const { basket, clearBasket } = useBasket();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const [paymentStep, setPaymentStep] = useState<'form' | 'processing' | 'completed' | 'error'>('form');
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [successOrderData, setSuccessOrderData] = useState<Order | null>(null);
 
     // Create order mutation
     const createOrderMutation = useMutation({
-        mutationFn: (data: { orderDetails: OrderDetails; paymentMethod: PaymentMethod }) => {
+        mutationFn: (data: { orderDetails: OrderDetails; paymentMethod: PaymentMethod; user?: UserInfo }) => {
+            // Log the user data for debugging
+            console.log('Creating order with user data:', data.user);
+
+            // Ensure we're sending the user data to the API
             return orderService.createOrder(
                 basket,
                 data.orderDetails,
-                data.paymentMethod
+                data.paymentMethod,
+                data.user
             );
         },
         onSuccess: (order) => {
@@ -32,25 +46,37 @@ export const useOrder = () => {
                 setPaymentStep('processing');
                 navigate(`/payment/momo/${order.id}`);
             } else {
-                // For COD, we can just clear the basket and show success
-                console.log('COD payment selected, clearing basket immediately');
+                // For COD, show success modal instead of navigating
+                console.log('COD payment selected, showing success modal');
+
+                // Set the success data and show modal
+                setSuccessOrderData(order);
+                setShowSuccessModal(true);
+                setPaymentStep('completed');
+
+                // Clear basket but avoid triggering navigation
                 try {
                     // Try to directly clear from sessionStorage
                     sessionStorage.removeItem('shop_basket');
-                    console.log("Directly cleared basket from sessionStorage");
                 } catch (error) {
                     console.error("Error directly clearing sessionStorage:", error);
                 }
 
+                // Clear the basket state
                 clearBasket();
-                setPaymentStep('completed');
-                navigate('/orders/success', { state: { order } });
+
+                console.log('Success modal should be visible now', { showSuccessModal: true, order });
             }
         },
         onError: () => {
             setPaymentStep('error');
         }
     });
+
+    const closeSuccessModal = () => {
+        setShowSuccessModal(false);
+        setSuccessOrderData(null);
+    };
 
     // Get VietQR data for payment
     const getVietQRMutation = useMutation({
@@ -86,12 +112,19 @@ export const useOrder = () => {
 
                 clearBasket();
                 setPaymentStep('completed');
-                navigate('/orders/success', {
-                    state: {
-                        orderId,
-                        paymentStatus: PaymentStatus.PAID
-                    }
-                });
+
+                // Get order data to show in success modal
+                orderService.getOrderById(orderId)
+                    .then(orderData => {
+                        setSuccessOrderData(orderData);
+                        setShowSuccessModal(true);
+                    })
+                    .catch(error => {
+                        console.error("Error fetching order data:", error);
+                        // Show basic success modal without detailed order data
+                        setSuccessOrderData({ id: orderId } as Order);
+                        setShowSuccessModal(true);
+                    });
             }
         }
     });
@@ -103,7 +136,12 @@ export const useOrder = () => {
         getMoMoQR,
         checkPaymentStatus,
         paymentStep,
-        setPaymentStep
+        setPaymentStep,
+        showSuccessModal,
+        successOrderData,
+        closeSuccessModal,
+        setSuccessOrderData,
+        setShowSuccessModal
     };
 };
 

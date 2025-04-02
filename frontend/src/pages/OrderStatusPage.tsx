@@ -13,6 +13,7 @@ import {
   Alert
 } from '@mui/material';
 import { useGetOrder } from '../hooks/useOrder';
+import { PaymentMethod } from '../types/order';
 
 const OrderStatusPage: React.FC = () => {
   const { orderId } = useParams<{ orderId: string }>();
@@ -153,7 +154,7 @@ const OrderStatusPage: React.FC = () => {
             Continue Shopping
           </Button>
           
-          {order.status === 'pending' && order.paymentMethod === 'vietqr' && (
+          {order.status === 'pending' && order.paymentMethod === PaymentMethod.VIETQR && (
             <Button 
               variant="contained" 
               color="primary" 

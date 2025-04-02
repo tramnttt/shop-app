@@ -48,6 +48,7 @@ import { useBasket } from '../hooks/useBasket';
 import { productService } from '../services/productService';
 import { formatImageUrl } from '../utils/imageUtils';
 import { useProduct } from '../hooks/useProducts';
+import ReviewSection from '../components/reviews/ReviewSection';
 
 // Utility function to format price safely
 const formatPrice = (price: number | null | undefined): string => {
@@ -554,6 +555,10 @@ const ProductDetailPage: React.FC = () => {
           </Fade>
         </Grid>
       </Grid>
+
+      {product && (
+        <ReviewSection productId={product.product_id} />
+      )}
     </Container>
   );
 };

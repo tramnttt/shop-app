@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { useLocation, useNavigate, Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useLocation, useNavigate, Link, useParams } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -9,10 +9,13 @@ import {
   Divider,
   Grid,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Chip,
+  Card,
+  CardContent
 } from '@mui/material';
-import { CheckCircleOutline } from '@mui/icons-material';
-import { Order, PaymentMethod, PaymentStatus } from '../types/order';
+import { CheckCircleOutline, ShoppingBag, Receipt } from '@mui/icons-material';
+import { Order, PaymentMethod, PaymentStatus, OrderStatus } from '../types/order';
 import { useGetOrder } from '../hooks/useOrder';
 import { useBasket } from '../hooks/useBasket';
 
@@ -20,15 +23,47 @@ const OrderSuccessPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { clearBasket } = useBasket();
-  const { order, orderId, paymentStatus } = location.state || {};
+  const params = useParams();
+  const [debugInfo, setDebugInfo] = useState<any>(null);
+  
+  // Extract data from location state or url params
+  const locationState = location.state || {};
+  const { order, orderId: stateOrderId, paymentStatus } = locationState;
+  
+  // Get orderId from params if not in state
+  const paramOrderId = params.orderId;
+  const effectiveOrderId = stateOrderId || paramOrderId || null;
+  
+  // Debug location state and params
+  useEffect(() => {
+    console.log('OrderSuccessPage - Location State:', location.state);
+    console.log('OrderSuccessPage - URL Params:', params);
+    console.log('OrderSuccessPage - Effective Order ID:', effectiveOrderId);
+    console.log('OrderSuccessPage - Direct Order Object:', order);
+    
+    setDebugInfo({
+      locationState,
+      params,
+      effectiveOrderId,
+      hasDirectOrder: !!order
+    });
+  }, [location, params, effectiveOrderId, order]);
   
   // If we have orderId but not the full order, fetch it
   const { 
     data: fetchedOrder, 
     isLoading, 
     error 
-  } = useGetOrder(order ? null : orderId);
+  } = useGetOrder(order ? null : effectiveOrderId ? Number(effectiveOrderId) : null);
   
+  // Log the fetched order for debugging
+  useEffect(() => {
+    console.log('OrderSuccessPage - Fetched Order:', fetchedOrder);
+    if (error) {
+      console.error('OrderSuccessPage - Fetch Error:', error);
+    }
+  }, [fetchedOrder, error]);
+
   const displayOrder: Order | null = order || fetchedOrder || null;
   
   // Ensure the basket is cleared when this page loads
@@ -49,14 +84,54 @@ const OrderSuccessPage: React.FC = () => {
   
   // Redirect to home if no order information
   useEffect(() => {
-    if (!order && !orderId && !isLoading) {
+    if (!order && !effectiveOrderId && !isLoading) {
+      console.log('No order info available, redirecting to home');
       navigate('/');
     }
-  }, [order, orderId, isLoading, navigate]);
+  }, [order, effectiveOrderId, isLoading, navigate]);
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getPaymentStatusLabel = () => {
+    const status = paymentStatus || displayOrder?.paymentStatus;
+    
+    if (status === PaymentStatus.PAID) {
+      return <Chip color="success" size="small" label="Paid" />;
+    } else if (displayOrder?.paymentMethod === PaymentMethod.COD) {
+      return <Chip color="info" size="small" label="Pay on Delivery" />;
+    } else {
+      return <Chip color="warning" size="small" label="Payment Pending" />;
+    }
+  };
+
+  const getOrderStatusLabel = () => {
+    const status = displayOrder?.status || OrderStatus.PENDING;
+    
+    switch (status) {
+      case OrderStatus.DELIVERED:
+        return <Chip color="success" size="small" label="Completed" />;
+      case OrderStatus.CANCELLED:
+        return <Chip color="error" size="small" label="Cancelled" />;
+      case OrderStatus.PROCESSING:
+        return <Chip color="info" size="small" label="Processing" />;
+      case OrderStatus.SHIPPED:
+        return <Chip color="info" size="small" label="Shipped" />;
+      default:
+        return <Chip color="warning" size="small" label="Pending" />;
+    }
+  };
 
   if (isLoading) {
     return (
-      <Container maxWidth="sm" sx={{ py: 8, textAlign: 'center' }}>
+      <Container maxWidth="md" sx={{ py: 8, textAlign: 'center' }}>
         <CircularProgress size={60} />
         <Typography variant="h6" sx={{ mt: 2 }}>
           Loading order information...
@@ -67,11 +142,23 @@ const OrderSuccessPage: React.FC = () => {
 
   if (error || (!displayOrder && !isLoading)) {
     return (
-      <Container maxWidth="sm" sx={{ py: 8 }}>
+      <Container maxWidth="md" sx={{ py: 8 }}>
         <Alert severity="error" sx={{ mb: 3 }}>
           Order details could not be loaded. Your order may still have been processed.
+          {error ? ` Error: ${error instanceof Error ? error.message : String(error)}` : ''}
         </Alert>
-        <Button variant="contained" component={Link} to="/">
+        {debugInfo && (
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            <Typography variant="subtitle2">Debug Information:</Typography>
+            <pre style={{ whiteSpace: 'pre-wrap', fontSize: '0.8rem' }}>
+              {JSON.stringify(debugInfo, null, 2)}
+            </pre>
+          </Alert>
+        )}
+        <Button variant="contained" component={Link} to="/orders">
+          View My Orders
+        </Button>
+        <Button variant="outlined" component={Link} to="/" sx={{ ml: 2 }}>
           Return to Home
         </Button>
       </Container>
@@ -79,7 +166,7 @@ const OrderSuccessPage: React.FC = () => {
   }
 
   return (
-    <Container maxWidth="sm" sx={{ py: 8 }}>
+    <Container maxWidth="md" sx={{ py: 8 }}>
       <Paper sx={{ p: 4 }}>
         <Box sx={{ textAlign: 'center', mb: 4 }}>
           <CheckCircleOutline color="success" sx={{ fontSize: 64 }} />
@@ -91,11 +178,30 @@ const OrderSuccessPage: React.FC = () => {
           </Typography>
         </Box>
 
+        {!displayOrder && debugInfo && (
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            <Typography variant="subtitle2">Debug Information:</Typography>
+            <pre style={{ whiteSpace: 'pre-wrap', fontSize: '0.8rem' }}>
+              {JSON.stringify(debugInfo, null, 2)}
+            </pre>
+          </Alert>
+        )}
+
         {displayOrder && (
           <>
             <Box sx={{ mb: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Order #{displayOrder.orderNumber || displayOrder.id}
+              <Grid container alignItems="center" spacing={2}>
+                <Grid item>
+                  <Typography variant="h5" component="span">
+                    Order #{displayOrder.orderNumber || displayOrder.id}
+                  </Typography>
+                </Grid>
+                <Grid item>
+                  {getOrderStatusLabel()}
+                </Grid>
+              </Grid>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Placed on {displayOrder.createdAt ? formatDate(displayOrder.createdAt) : 'Just now'}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 We've sent a confirmation email to {displayOrder.orderDetails?.email}
@@ -104,106 +210,192 @@ const OrderSuccessPage: React.FC = () => {
 
             <Divider sx={{ my: 3 }} />
 
-            <Typography variant="subtitle1" gutterBottom>
-              Order Summary
-            </Typography>
+            <Grid container spacing={4}>
+              <Grid item xs={12} md={7}>
+                <Typography variant="h6" gutterBottom>
+                  Order Items
+                </Typography>
+                
+                <Card variant="outlined" sx={{ mb: 3 }}>
+                  <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+                    {displayOrder.items.map((item) => (
+                      <Grid container key={item.id} sx={{ py: 1 }} alignItems="center">
+                        <Grid item xs={2} sm={1}>
+                          <Box 
+                            component="img" 
+                            src={item.image_url || "https://via.placeholder.com/50"} 
+                            alt={item.name}
+                            sx={{ 
+                              width: 40, 
+                              height: 40, 
+                              objectFit: 'contain',
+                              border: '1px solid #eee',
+                              borderRadius: 1
+                            }}
+                          />
+                        </Grid>
+                        <Grid item xs={6} sm={7}>
+                          <Typography variant="body2" noWrap>
+                            {item.name}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Qty: {item.quantity}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={4} sx={{ textAlign: 'right' }}>
+                          <Typography variant="body2" fontWeight="bold">
+                            ${(item.price * item.quantity).toFixed(2)}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            ${item.price.toFixed(2)} each
+                          </Typography>
+                        </Grid>
+                      </Grid>
+                    ))}
+                  </CardContent>
+                </Card>
 
-            <Box sx={{ mb: 3 }}>
-              {displayOrder.items.map((item) => (
-                <Grid container key={item.id} sx={{ py: 1 }}>
-                  <Grid item xs={8}>
-                    <Typography variant="body2">
-                      {item.name} × {item.quantity}
+                <Box sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  px: 2
+                }}>
+                  <Typography variant="subtitle1">Subtotal</Typography>
+                  <Typography variant="subtitle1">${displayOrder.total.toFixed(2)}</Typography>
+                </Box>
+                <Box sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  px: 2
+                }}>
+                  <Typography variant="subtitle1">Shipping</Typography>
+                  <Typography variant="subtitle1">$0.00</Typography>
+                </Box>
+                <Box sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  p: 2,
+                  mt: 1,
+                  bgcolor: 'grey.100',
+                  borderRadius: 1
+                }}>
+                  <Typography variant="h6">Total</Typography>
+                  <Typography variant="h6">${displayOrder.total.toFixed(2)}</Typography>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12} md={5}>
+                <Typography variant="h6" gutterBottom>
+                  Order Details
+                </Typography>
+                
+                <Card variant="outlined" sx={{ mb: 3 }}>
+                  <CardContent>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Shipping Information
                     </Typography>
-                  </Grid>
-                  <Grid item xs={4} sx={{ textAlign: 'right' }}>
                     <Typography variant="body2">
-                      ${(item.price * item.quantity).toFixed(2)}
+                      {displayOrder.orderDetails?.fullName}
                     </Typography>
-                  </Grid>
-                </Grid>
-              ))}
+                    <Typography variant="body2">
+                      {displayOrder.orderDetails?.address}
+                    </Typography>
+                    <Typography variant="body2">
+                      {displayOrder.orderDetails?.city}, {displayOrder.orderDetails?.postalCode}
+                    </Typography>
+                    <Typography variant="body2" sx={{ mb: 2 }}>
+                      {displayOrder.orderDetails?.phone}
+                    </Typography>
 
-              <Divider sx={{ my: 1 }} />
+                    {displayOrder.user && (
+                      <>
+                        <Divider sx={{ my: 2 }} />
+                        <Typography variant="subtitle2" gutterBottom>
+                          Customer Information
+                        </Typography>
+                        <Typography variant="body2">
+                          {displayOrder.user.firstName} {displayOrder.user.lastName}
+                        </Typography>
+                        <Typography variant="body2">
+                          {displayOrder.user.email}
+                        </Typography>
+                        {displayOrder.user.phone && (
+                          <Typography variant="body2">
+                            {displayOrder.user.phone}
+                          </Typography>
+                        )}
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
 
-              <Grid container sx={{ py: 1 }}>
-                <Grid item xs={8}>
-                  <Typography variant="subtitle2">Total</Typography>
-                </Grid>
-                <Grid item xs={4} sx={{ textAlign: 'right' }}>
-                  <Typography variant="subtitle2">
-                    ${displayOrder.total.toFixed(2)}
-                  </Typography>
-                </Grid>
-              </Grid>
-            </Box>
-
-            <Divider sx={{ my: 3 }} />
-
-            <Typography variant="subtitle1" gutterBottom>
-              Payment Information
-            </Typography>
-
-            <Grid container spacing={2} sx={{ mb: 3 }}>
-              <Grid item xs={6}>
-                <Typography variant="body2">Method:</Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="body2">
-                  {displayOrder.paymentMethod === PaymentMethod.VIETQR
-                    ? 'VietQR (Bank Transfer)'
-                    : 'Cash on Delivery'}
+                <Typography variant="h6" gutterBottom>
+                  Payment Information
                 </Typography>
-              </Grid>
+                
+                <Card variant="outlined">
+                  <CardContent>
+                    <Grid container spacing={2}>
+                      <Grid item xs={5}>
+                        <Typography variant="body2">Method:</Typography>
+                      </Grid>
+                      <Grid item xs={7}>
+                        <Typography variant="body2">
+                          {displayOrder.paymentMethod === PaymentMethod.VIETQR
+                            ? 'Bank Transfer (VietQR)'
+                            : displayOrder.paymentMethod === PaymentMethod.MOMO
+                              ? 'MoMo E-Wallet'
+                              : 'Cash on Delivery'}
+                        </Typography>
+                      </Grid>
 
-              <Grid item xs={6}>
-                <Typography variant="body2">Status:</Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography 
-                  variant="body2"
-                  color={
-                    (paymentStatus === PaymentStatus.PAID || displayOrder.paymentStatus === PaymentStatus.PAID)
-                      ? 'success.main'
-                      : 'warning.main'
-                  }
-                >
-                  {(paymentStatus === PaymentStatus.PAID || displayOrder.paymentStatus === PaymentStatus.PAID)
-                    ? 'Paid'
-                    : displayOrder.paymentMethod === PaymentMethod.COD
-                      ? 'Pay on delivery'
-                      : 'Pending'}
-                </Typography>
-              </Grid>
-            </Grid>
-
-            <Divider sx={{ my: 3 }} />
-
-            <Typography variant="subtitle1" gutterBottom>
-              Shipping Information
-            </Typography>
-
-            <Grid container spacing={2} sx={{ mb: 3 }}>
-              <Grid item xs={12}>
-                <Typography variant="body2">
-                  {displayOrder.orderDetails?.fullName}
-                </Typography>
-                <Typography variant="body2">
-                  {displayOrder.orderDetails?.address}
-                </Typography>
-                <Typography variant="body2">
-                  {displayOrder.orderDetails?.city}, {displayOrder.orderDetails?.postalCode}
-                </Typography>
-                <Typography variant="body2">
-                  {displayOrder.orderDetails?.phone}
-                </Typography>
+                      <Grid item xs={5}>
+                        <Typography variant="body2">Status:</Typography>
+                      </Grid>
+                      <Grid item xs={7}>
+                        {getPaymentStatusLabel()}
+                      </Grid>
+                      
+                      {displayOrder.createdAt && (
+                        <>
+                          <Grid item xs={5}>
+                            <Typography variant="body2">Order Date:</Typography>
+                          </Grid>
+                          <Grid item xs={7}>
+                            <Typography variant="body2">
+                              {formatDate(displayOrder.createdAt)}
+                            </Typography>
+                          </Grid>
+                        </>
+                      )}
+                    </Grid>
+                  </CardContent>
+                </Card>
               </Grid>
             </Grid>
           </>
         )}
 
-        <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
-          <Button variant="contained" component={Link} to="/" sx={{ minWidth: 200 }}>
+        <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center', gap: 2 }}>
+          <Button 
+            variant="outlined"
+            startIcon={<Receipt />} 
+            component={Link} 
+            to="/orders" 
+            sx={{ minWidth: 150 }}
+          >
+            View Orders
+          </Button>
+          <Button 
+            variant="contained" 
+            startIcon={<ShoppingBag />}
+            component={Link} 
+            to="/products" 
+            sx={{ minWidth: 150 }}
+          >
             Continue Shopping
           </Button>
         </Box>

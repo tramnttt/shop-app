@@ -37,10 +37,8 @@ const LoginPage: React.FC = () => {
 
     try {
       await login({ email, password });
-      // Only navigate after successful login
-      setTimeout(() => {
-        navigate(redirectUrl, { replace: true });
-      }, 100);
+      // Navigate to the redirect URL after successful login
+      navigate(redirectUrl, { replace: true });
     } catch (err: any) {
       console.error('Login error:', err);
       setError(

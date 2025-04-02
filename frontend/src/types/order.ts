@@ -10,6 +10,13 @@ export interface OrderDetails {
     notes?: string;
 }
 
+export interface UserInfo {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+}
+
 export interface Order {
     id?: number;
     userId?: number;
@@ -22,6 +29,7 @@ export interface Order {
     paymentStatus: PaymentStatus;
     createdAt?: string;
     updatedAt?: string;
+    user?: UserInfo;
 }
 
 export enum OrderStatus {
@@ -33,9 +41,9 @@ export enum OrderStatus {
 }
 
 export enum PaymentMethod {
-    VIETQR = 'vietqr',
-    MOMO = 'momo',
-    COD = 'cod'
+    VIETQR = 'VIETQR',
+    MOMO = 'MOMO',
+    COD = 'COD'
 }
 
 export enum PaymentStatus {
