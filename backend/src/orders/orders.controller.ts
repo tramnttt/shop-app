@@ -1,13 +1,68 @@
-import { Controller, Post, Body, Get, Param, UseGuards, Request, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, UseGuards, Request, HttpException, HttpStatus, Query, Patch } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CreateOrderDto } from './dto/create-order.dto';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { CreateOrderDto, GetOrdersFilterDto, UpdateOrderStatusDto, UpdatePaymentStatusDto } from './dto/create-order.dto';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
 
 @ApiTags('Orders')
 @Controller('orders')
 export class OrdersController {
     constructor(private readonly ordersService: OrdersService) { }
+
+    // Admin endpoints
+    @Get('admin')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('admin')
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Get all orders (admin only)' })
+    @ApiResponse({ status: 200, description: 'Returns paginated orders list' })
+    async getAllOrders(@Query() filterDto: GetOrdersFilterDto) {
+        return this.ordersService.getAllOrders(filterDto);
+    }
+
+    @Get('admin/:id')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('admin')
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Get order by ID (admin only)' })
+    @ApiResponse({ status: 200, description: 'Returns order details' })
+    @ApiResponse({ status: 404, description: 'Order not found' })
+    async getOrderByIdAdmin(@Param('id') id: string) {
+        const orderId = parseInt(id, 10);
+        return this.ordersService.getOrderByIdAdmin(orderId);
+    }
+
+    @Patch('admin/:id/status')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('admin')
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Update order status (admin only)' })
+    @ApiResponse({ status: 200, description: 'Order status updated successfully' })
+    @ApiResponse({ status: 404, description: 'Order not found' })
+    async updateOrderStatus(
+        @Param('id') id: string,
+        @Body() updateStatusDto: UpdateOrderStatusDto
+    ) {
+        const orderId = parseInt(id, 10);
+        return this.ordersService.updateOrderStatus(orderId, updateStatusDto);
+    }
+
+    @Patch('admin/:id/payment')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('admin')
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Update payment status (admin only)' })
+    @ApiResponse({ status: 200, description: 'Payment status updated successfully' })
+    @ApiResponse({ status: 404, description: 'Order not found' })
+    async updatePaymentStatus(
+        @Param('id') id: string,
+        @Body() updatePaymentDto: UpdatePaymentStatusDto
+    ) {
+        const orderId = parseInt(id, 10);
+        return this.ordersService.updatePaymentStatus(orderId, updatePaymentDto);
+    }
 
     @Post()
     @UseGuards(JwtAuthGuard)

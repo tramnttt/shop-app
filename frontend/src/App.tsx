@@ -10,6 +10,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import CategoriesPage from './pages/admin/CategoriesPage';
 import AdminProductsPage from './pages/admin/ProductsPage';
+import AdminOrdersPage from './pages/admin/OrdersPage';
 import BasketPage from './pages/BasketPage';
 import CheckoutPage from './pages/CheckoutPage';
 import VietQRPaymentPage from './pages/VietQRPaymentPage';
@@ -84,6 +85,14 @@ const App: React.FC = () => {
                             element={
                                 <ProtectedRoute requiredRole="admin">
                                     <AdminProductsPage />
+                                </ProtectedRoute>
+                            } 
+                        />
+                        <Route 
+                            path="/admin/orders" 
+                            element={
+                                <ProtectedRoute requiredRole="admin">
+                                    <AdminOrdersPage />
                                 </ProtectedRoute>
                             } 
                         />

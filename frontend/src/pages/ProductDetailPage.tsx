@@ -144,10 +144,15 @@ const ProductDetailPage: React.FC = () => {
       return;
     }
     
+    // Ensure the price is a proper number
+    const basePrice = typeof product.base_price === 'string' 
+      ? parseFloat(product.base_price) 
+      : (typeof product.base_price === 'number' ? product.base_price : 0);
+    
     const productToAdd = {
       id: product.product_id,
       name: product.name,
-      price: parseFloat(String(product.base_price)),
+      price: basePrice,
       image_url: product.images && product.images.length > 0 ? product.images[0].image_url : undefined
     };
     
@@ -395,20 +400,23 @@ const ProductDetailPage: React.FC = () => {
               </Box>
 
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, my: 2 }}>
-                {typeof product.sale_price === 'number' && product.sale_price < product.base_price ? (
+                {product.sale_price && parseFloat(String(product.sale_price)) < parseFloat(String(product.base_price)) ? (
                   <>
                     <Typography variant="h4" color="error" fontWeight="bold">
-                      ${formatPrice(product.sale_price)}
+                      ${formatPrice(parseFloat(String(product.sale_price)))}
                     </Typography>
                     <Typography 
                       variant="h6" 
                       color="text.secondary" 
                       sx={{ textDecoration: 'line-through' }}
                     >
-                      ${formatPrice(product.base_price)}
+                      ${formatPrice(parseFloat(String(product.base_price)))}
                     </Typography>
                     <Chip 
-                      label={`${calculateDiscountPercentage(product.base_price, product.sale_price)}% OFF`} 
+                      label={`${calculateDiscountPercentage(
+                        parseFloat(String(product.base_price)), 
+                        parseFloat(String(product.sale_price))
+                      )}% OFF`} 
                       color="error" 
                       size="small"
                       sx={{ fontWeight: 'bold' }}
@@ -416,7 +424,7 @@ const ProductDetailPage: React.FC = () => {
                   </>
                 ) : (
                   <Typography variant="h4" fontWeight="bold">
-                    ${formatPrice(product.base_price)}
+                    ${formatPrice(parseFloat(String(product.base_price)))}
                   </Typography>
                 )}
               </Box>

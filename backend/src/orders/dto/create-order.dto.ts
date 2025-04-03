@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsNumber, IsObject, IsArray, ValidateNested, IsString, IsOptional } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsNumber, IsObject, IsArray, ValidateNested, IsString, IsOptional, IsDate, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum PaymentMethod {
@@ -14,11 +14,84 @@ export enum PaymentStatus {
     FAILED = 'FAILED',
 }
 
+export enum OrderStatus {
+    PENDING = 'PENDING',
+    PROCESSING = 'PROCESSING',
+    SHIPPED = 'SHIPPED',
+    DELIVERED = 'DELIVERED',
+    CANCELLED = 'CANCELLED',
+}
+
 export interface QRCodeData {
     orderId: number;
     qrCode: string;
     amount: number;
     expiresAt: string; // ISO date string
+}
+
+export class UpdateOrderStatusDto {
+    @ApiProperty({ description: 'Order status', enum: OrderStatus })
+    @IsEnum(OrderStatus)
+    @IsNotEmpty()
+    status: OrderStatus;
+}
+
+export class UpdatePaymentStatusDto {
+    @ApiProperty({ description: 'Payment status', enum: PaymentStatus })
+    @IsEnum(PaymentStatus)
+    @IsNotEmpty()
+    paymentStatus: PaymentStatus;
+}
+
+export class GetOrdersFilterDto {
+    @ApiProperty({ description: 'Filter by status', enum: OrderStatus, required: false })
+    @IsEnum(OrderStatus)
+    @IsOptional()
+    status?: OrderStatus;
+
+    @ApiProperty({ description: 'Filter by payment status', enum: PaymentStatus, required: false })
+    @IsEnum(PaymentStatus)
+    @IsOptional()
+    paymentStatus?: PaymentStatus;
+
+    @ApiProperty({ description: 'Filter by customer ID', required: false })
+    @IsNumber()
+    @IsOptional()
+    customerId?: number;
+
+    @ApiProperty({ description: 'Filter by date from', required: false })
+    @IsDate()
+    @Type(() => Date)
+    @IsOptional()
+    dateFrom?: Date;
+
+    @ApiProperty({ description: 'Filter by date to', required: false })
+    @IsDate()
+    @Type(() => Date)
+    @IsOptional()
+    dateTo?: Date;
+
+    @ApiProperty({ description: 'Page number', default: 1, required: false })
+    @IsNumber()
+    @IsOptional()
+    page?: number = 1;
+
+    @ApiProperty({ description: 'Items per page', default: 10, required: false })
+    @IsNumber()
+    @IsOptional()
+    limit?: number = 10;
+
+    @ApiProperty({ description: 'Sort field', required: false, enum: ['createdAt', 'updatedAt', 'total'] })
+    @IsString()
+    @IsOptional()
+    @IsIn(['createdAt', 'updatedAt', 'total'])
+    sortField?: string = 'createdAt';
+
+    @ApiProperty({ description: 'Sort order', required: false, enum: ['ASC', 'DESC'] })
+    @IsString()
+    @IsOptional()
+    @IsIn(['ASC', 'DESC'])
+    sortOrder?: 'ASC' | 'DESC' = 'DESC';
 }
 
 export class OrderItemDto {

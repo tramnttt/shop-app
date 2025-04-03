@@ -85,7 +85,8 @@ export const Header: React.FC = () => {
 
     const adminNavigationItems = [
         { label: 'Categories', path: '/admin/categories', icon: <CategoryOutlined fontSize="small" /> },
-        { label: 'Products', path: '/admin/products', icon: <Inventory fontSize="small" /> }
+        { label: 'Products', path: '/admin/products', icon: <Inventory fontSize="small" /> },
+        { label: 'Orders', path: '/admin/orders', icon: <ShoppingBag fontSize="small" /> }
     ];
 
     return (

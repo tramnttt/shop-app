@@ -1,149 +1,184 @@
 import React from 'react';
-import { Card, CardContent, CardMedia, Typography, Box, Rating, Button, CardActionArea, Chip } from '@mui/material';
-import { ShoppingCart, Star as StarIcon } from '@mui/icons-material';
+import { Card, CardContent, CardActions, CardMedia, Typography, Box, Button, Rating, Chip } from '@mui/material';
+import { AddShoppingCart } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 import { useBasket } from '../hooks/useBasket';
 import { formatImageUrl, getPrimaryImageUrl } from '../utils/imageUtils';
 
+// Helper function to safely format price
+const formatPrice = (price: number | string | null | undefined): string => {
+  if (price === null || price === undefined) return '0.00';
+  
+  const numericPrice = typeof price === 'string' ? parseFloat(price) : price;
+  
+  if (typeof numericPrice !== 'number' || isNaN(numericPrice)) {
+    return '0.00';
+  }
+  
+  return numericPrice.toFixed(2);
+};
+
+// Calculate discount percentage
+const calculateDiscount = (basePrice: any, salePrice: any): number => {
+  const base = parseFloat(String(basePrice));
+  const sale = parseFloat(String(salePrice));
+  
+  if (isNaN(base) || isNaN(sale) || base <= 0 || sale >= base) return 0;
+  
+  return Math.round(((base - sale) / base) * 100);
+};
+
 interface ProductCardProps {
   product: any;
-  compact?: boolean;
+  showAddToCart?: boolean;
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) => {
+const ProductCard: React.FC<ProductCardProps> = ({ product, showAddToCart = true }) => {
   const { addItem } = useBasket();
   
-  // Use utility function to get formatted image URL
-  const formattedImageUrl = getPrimaryImageUrl(product.images);
-  
-  // Calculate discount percentage if sale price exists and both prices are valid numbers
-  const hasDiscount = typeof product.sale_price === 'number' && 
-                      typeof product.base_price === 'number' && 
-                      product.sale_price < product.base_price;
-  
-  const discountPercentage = hasDiscount
-    ? Math.round(((product.base_price - product.sale_price) / product.base_price) * 100)
-    : 0;
-
   const handleAddToBasket = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Adding to basket from ProductCard:', product);
     
+    // Ensure price is properly parsed
+    const price = typeof product.sale_price === 'string' 
+      ? parseFloat(product.sale_price) 
+      : typeof product.sale_price === 'number' 
+        ? product.sale_price 
+        : typeof product.base_price === 'string'
+          ? parseFloat(product.base_price)
+          : product.base_price;
+          
     addItem({
       id: product.product_id,
       name: product.name,
-      price: parseFloat(String(product.sale_price || product.base_price)),
-      image_url: product.images && product.images.length > 0 
-        ? product.images[0].image_url 
-        : undefined
+      price: price,
+      image_url: product.images && product.images.length > 0 ? formatImageUrl(product.images[0].image_url) : undefined
     });
   };
-
+  
+  // Use getPrimaryImageUrl to get the proper formatted image URL
+  const imageUrl = getPrimaryImageUrl(product.images);
+  
+  const isOnSale = product.sale_price && parseFloat(String(product.sale_price)) < parseFloat(String(product.base_price));
+  
   return (
-    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-      {hasDiscount && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 10,
-            right: 10,
-            backgroundColor: 'error.main',
-            color: 'white',
-            borderRadius: '4px',
-            padding: '4px 8px',
-            fontWeight: 'bold',
-            zIndex: 1
-          }}
-        >
-          {discountPercentage}% OFF
-        </Box>
-      )}
-      
-      <CardActionArea component={Link} to={`/products/${product.product_id}`}>
+    <Card 
+      sx={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        height: '100%',
+        transition: 'transform 0.3s, box-shadow 0.3s',
+        '&:hover': {
+          transform: 'translateY(-5px)',
+          boxShadow: '0 8px 16px rgba(0,0,0,0.1)'
+        }
+      }}
+      component={Link}
+      to={`/products/${product.product_id}`}
+      style={{ textDecoration: 'none', color: 'inherit' }}
+    >
+      <Box 
+        sx={{ 
+          position: 'relative', 
+          pt: '100%', // 1:1 aspect ratio
+          overflow: 'hidden'
+        }}
+      >
         <CardMedia
           component="img"
-          height={compact ? 140 : 200}
-          image={formattedImageUrl}
+          image={imageUrl}
           alt={product.name}
-          sx={{
-            objectFit: 'contain',
-            bgcolor: 'grey.100',
-            p: 1
+          sx={{ 
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            transition: 'transform 0.3s ease-in-out',
+            '&:hover': {
+              transform: 'scale(1.05)'
+            }
           }}
         />
-        <CardContent sx={{ flexGrow: 1, pb: compact ? 1 : undefined }}>
-          <Typography gutterBottom variant={compact ? "body1" : "h6"} component="div" noWrap>
-            {product.name}
-            {product.is_featured && (
-              <StarIcon 
-                fontSize="small" 
-                color="primary" 
-                sx={{ ml: 0.5, verticalAlign: 'middle' }} 
-              />
-            )}
-          </Typography>
-          
-          {!compact && (
-            <Typography variant="body2" color="text.secondary" sx={{ 
-              mb: 1,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-            }}>
-              {product.description}
+        {isOnSale && (
+          <Chip
+            label={`${calculateDiscount(product.base_price, product.sale_price)}% OFF`}
+            color="error"
+            size="small"
+            sx={{
+              position: 'absolute',
+              top: 10,
+              right: 10,
+              fontWeight: 'bold'
+            }}
+          />
+        )}
+        {product.featured && (
+          <Chip
+            label="Featured"
+            color="primary"
+            size="small"
+            sx={{
+              position: 'absolute',
+              top: isOnSale ? 45 : 10,
+              right: 10,
+              fontWeight: 'bold'
+            }}
+          />
+        )}
+      </Box>
+      
+      <CardContent sx={{ flexGrow: 1, pb: 1 }}>
+        <Typography variant="h6" noWrap>{product.name}</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', mt: 1, mb: 0.5 }}>
+          {isOnSale ? (
+            <>
+              <Typography variant="h6" color="error" fontWeight="bold">
+                ${formatPrice(product.sale_price)}
+              </Typography>
+              <Typography 
+                variant="body2" 
+                color="text.secondary" 
+                sx={{ ml: 1, textDecoration: 'line-through' }}
+              >
+                ${formatPrice(product.base_price)}
+              </Typography>
+            </>
+          ) : (
+            <Typography variant="h6" fontWeight="bold">
+              ${formatPrice(product.base_price)}
             </Typography>
           )}
-          
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
-            <Box>
-              {hasDiscount ? (
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Typography variant={compact ? "body1" : "h6"} color="error.main" fontWeight="bold">
-                    ${typeof product.sale_price === 'number' ? product.sale_price.toFixed(2) : '0.00'}
-                  </Typography>
-                  <Typography 
-                    variant="body2" 
-                    color="text.secondary" 
-                    sx={{ ml: 1, textDecoration: 'line-through' }}
-                  >
-                    ${typeof product.base_price === 'number' ? product.base_price.toFixed(2) : '0.00'}
-                  </Typography>
-                </Box>
-              ) : (
-                <Typography variant={compact ? "body1" : "h6"} fontWeight="bold">
-                  ${typeof product.base_price === 'number' ? product.base_price.toFixed(2) : '0.00'}
-                </Typography>
-              )}
-            </Box>
-            
-            {!compact && (
-              <Button
-                size="small"
-                variant="contained"
-                color="primary"
-                onClick={handleAddToBasket}
-                startIcon={<ShoppingCart />}
-                sx={{ minWidth: 'auto' }}
-                disabled={product.stock_quantity <= 0}
-              >
-                Add
-              </Button>
-            )}
+        </Box>
+        
+        <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+          <Box sx={{ mr: 1, display: 'flex', alignItems: 'center' }}>
+            <Typography 
+              variant="body2" 
+              color={product.stock_quantity > 0 ? 'success.main' : 'error.main'}
+            >
+              {product.stock_quantity > 0 ? 'In Stock' : 'Out of Stock'}
+            </Typography>
           </Box>
-          
-          {product.stock_quantity <= 0 && (
-            <Chip 
-              label="Out of Stock" 
-              color="error" 
-              size="small" 
-              sx={{ mt: 1 }}
-            />
-          )}
-        </CardContent>
-      </CardActionArea>
+        </Box>
+      </CardContent>
+      
+      {showAddToCart && (
+        <CardActions sx={{ pt: 0 }}>
+          <Button 
+            fullWidth 
+            variant="contained" 
+            startIcon={<AddShoppingCart />}
+            onClick={handleAddToBasket}
+            disabled={product.stock_quantity <= 0}
+            sx={{ borderRadius: '0 0 4px 4px' }}
+          >
+            Add to Cart
+          </Button>
+        </CardActions>
+      )}
     </Card>
   );
 };

@@ -120,9 +120,9 @@ const ProductsPage: React.FC = () => {
   const sortedProducts = productsData?.products ? [...productsData.products].sort((a, b) => {
     switch (sortBy) {
       case 'price_low':
-        return (a.sale_price || a.base_price) - (b.sale_price || b.base_price);
+        return parseFloat(String(a.sale_price || a.base_price)) - parseFloat(String(b.sale_price || b.base_price));
       case 'price_high':
-        return (b.sale_price || b.base_price) - (a.sale_price || a.base_price);
+        return parseFloat(String(b.sale_price || b.base_price)) - parseFloat(String(a.sale_price || a.base_price));
       case 'name_asc':
         return a.name.localeCompare(b.name);
       case 'name_desc':
@@ -180,11 +180,21 @@ const ProductsPage: React.FC = () => {
   
   const handleAddToBasket = (product: any, event: React.MouseEvent) => {
     event.stopPropagation();
+
     if (product && product.product_id) {
+      // Ensure the price is properly parsed as a number
+      const price = typeof product.sale_price === 'string' 
+        ? parseFloat(product.sale_price) 
+        : typeof product.sale_price === 'number' 
+          ? product.sale_price 
+          : typeof product.base_price === 'string'
+            ? parseFloat(product.base_price)
+            : product.base_price;
+            
       addItem({
         id: product.product_id,
         name: product.name,
-        price: parseFloat(String(product.sale_price || product.base_price)),
+        price: price,
         image_url: product.images && product.images.length > 0 
           ? product.images[0].image_url 
           : undefined

@@ -31,8 +31,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     useEffect(() => {
         if (user) {
             localStorage.setItem('user', JSON.stringify(user));
+            localStorage.setItem('userRole', user.role);
+            console.log('User data saved to localStorage:', user);
+            console.log('User role saved to localStorage:', user.role);
         } else {
             localStorage.removeItem('user');
+            localStorage.removeItem('userRole');
         }
     }, [user]);
 
@@ -40,6 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             const response = await authService.login(credentials);
             console.log('Login response:', response);
+            console.log('User role from server:', response.user.role);
             const userData: User = {
                 id: response.user.id,
                 email: response.user.email,
@@ -47,10 +52,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 lastName: response.user.lastName,
                 role: response.user.role || 'customer'
             };
+            console.log('Saving user data with role:', userData.role);
             setUser(userData);
             setIsAuthenticated(true);
             localStorage.setItem('user', JSON.stringify(userData));
             localStorage.setItem('token', response.access_token);
+            localStorage.setItem('userRole', userData.role);
         } catch (error) {
             setUser(null);
             setIsAuthenticated(false);

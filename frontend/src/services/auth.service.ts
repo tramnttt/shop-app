@@ -36,6 +36,7 @@ export interface UserProfile {
 class AuthService {
     async login(credentials: LoginCredentials): Promise<AuthResponse> {
         const response = await api.post('/api/auth/login', credentials);
+        console.log('Raw login response data:', response.data);
 
         if (response.data.access_token) {
             localStorage.setItem('token', response.data.access_token);

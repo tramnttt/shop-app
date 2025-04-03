@@ -1,11 +1,19 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Connection } from 'typeorm';
+import { Repository, Connection, Between, Like } from 'typeorm';
 import { Order } from '../entities/order.entity';
 import { OrderItem } from '../entities/order-item.entity';
 import { Product } from '../entities/product.entity';
 import { Customer } from '../entities/customer.entity';
-import { CreateOrderDto, PaymentMethod, PaymentStatus } from './dto/create-order.dto';
+import {
+    CreateOrderDto,
+    PaymentMethod,
+    PaymentStatus,
+    UpdateOrderStatusDto,
+    UpdatePaymentStatusDto,
+    GetOrdersFilterDto,
+    OrderStatus
+} from './dto/create-order.dto';
 
 @Injectable()
 export class OrdersService {
@@ -20,6 +28,122 @@ export class OrdersService {
         private customersRepository: Repository<Customer>,
         private connection: Connection,
     ) { }
+
+    // Admin methods
+    async getAllOrders(filters: GetOrdersFilterDto) {
+        const skip = (filters.page - 1) * filters.limit;
+
+        // Build the query
+        const queryBuilder = this.ordersRepository.createQueryBuilder('order')
+            .leftJoinAndSelect('order.orderItems', 'orderItems')
+            .leftJoinAndSelect('orderItems.product', 'product');
+
+        // Apply filters
+        if (filters.status) {
+            queryBuilder.andWhere('order.status = :status', { status: filters.status });
+        }
+
+        if (filters.paymentStatus) {
+            // Since paymentStatus might be stored in a separate field or property
+            // Check your database schema and adjust accordingly
+            queryBuilder.andWhere('order.payment_status = :paymentStatus', { paymentStatus: filters.paymentStatus });
+        }
+
+        if (filters.customerId) {
+            queryBuilder.andWhere('order.customer_id = :customerId', { customerId: filters.customerId });
+        }
+
+        if (filters.dateFrom) {
+            queryBuilder.andWhere('order.created_at >= :dateFrom', { dateFrom: filters.dateFrom });
+        }
+
+        if (filters.dateTo) {
+            queryBuilder.andWhere('order.created_at <= :dateTo', { dateTo: filters.dateTo });
+        }
+
+        // Apply sorting
+        if (filters.sortField === 'createdAt') {
+            queryBuilder.orderBy('order.created_at', filters.sortOrder);
+        } else if (filters.sortField === 'updatedAt') {
+            queryBuilder.orderBy('order.updated_at', filters.sortOrder);
+        } else if (filters.sortField === 'total') {
+            queryBuilder.orderBy('order.total_amount', filters.sortOrder);
+        }
+
+        // Count total items for pagination
+        const total = await queryBuilder.getCount();
+
+        // Get paginated results
+        const orders = await queryBuilder
+            .skip(skip)
+            .take(filters.limit)
+            .getMany();
+
+        const transformedOrders = orders.map(order => this.transformOrderToDto(order));
+
+        // Return the paginated result with metadata
+        return {
+            items: transformedOrders,
+            meta: {
+                total,
+                page: filters.page,
+                limit: filters.limit,
+                totalPages: Math.ceil(total / filters.limit)
+            }
+        };
+    }
+
+    async updateOrderStatus(orderId: number, updateStatusDto: UpdateOrderStatusDto) {
+        const order = await this.ordersRepository.findOne({
+            where: { id: orderId },
+            relations: ['orderItems', 'orderItems.product']
+        });
+
+        if (!order) {
+            throw new NotFoundException(`Order with ID ${orderId} not found`);
+        }
+
+        // Update status
+        order.status = updateStatusDto.status;
+        await this.ordersRepository.save(order);
+
+        return this.transformOrderToDto(order);
+    }
+
+    async updatePaymentStatus(orderId: number, updatePaymentDto: UpdatePaymentStatusDto) {
+        const order = await this.ordersRepository.findOne({
+            where: { id: orderId },
+            relations: ['orderItems', 'orderItems.product']
+        });
+
+        if (!order) {
+            throw new NotFoundException(`Order with ID ${orderId} not found`);
+        }
+
+        // Update payment status (assuming we store it in the order entity)
+        // Note: In a real application, you might need to modify your Order entity to include this field
+        if (order['paymentStatus'] !== undefined) {
+            order['paymentStatus'] = updatePaymentDto.paymentStatus;
+        }
+
+        await this.ordersRepository.save(order);
+
+        return this.transformOrderToDto(order);
+    }
+
+    // Get order by ID (admin version - doesn't filter by customer)
+    async getOrderByIdAdmin(orderId: number) {
+        const order = await this.ordersRepository.findOne({
+            where: { id: orderId },
+            relations: ['orderItems', 'orderItems.product'],
+        });
+
+        if (!order) {
+            throw new NotFoundException(`Order with ID ${orderId} not found`);
+        }
+
+        return this.transformOrderToDto(order);
+    }
 
     async createOrder(customerId: number, createOrderDto: CreateOrderDto) {
         // Validate customer exists
