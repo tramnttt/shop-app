@@ -118,7 +118,7 @@ export class ProductsService {
         };
     }
 
-    async create(createProductDto: CreateProductDto, files: Express.Multer.File[]) {
+    async create(createProductDto: CreateProductDto, files: Express.Multer.File[] = []) {
         console.log(`Creating product with data:`, createProductDto);
         console.log('Request type:', files?.length > 0 ? 'multipart/form-data with files' : 'JSON or empty multipart');
 
@@ -164,6 +164,19 @@ export class ProductsService {
             console.log('Final is_featured value to save:', booleanValue, typeof booleanValue);
         }
 
+        // Process base64 image uploads if any
+        let processedFiles = [...files];
+        if (createProductDto.image_uploads && createProductDto.image_uploads.length > 0) {
+            console.log(`Processing ${createProductDto.image_uploads.length} base64 encoded images`);
+
+            // Process each base64 image
+            const processedBase64Files = await this.processBase64Images(createProductDto.image_uploads);
+            processedFiles = [...processedFiles, ...processedBase64Files];
+
+            // Remove the image_uploads from DTO as we've processed them
+            delete createProductDto.image_uploads;
+        }
+
         const { category_ids, ...productData } = createProductDto;
 
         // Create and save the product
@@ -171,8 +184,8 @@ export class ProductsService {
         const savedProduct = await this.productsRepository.save(product);
 
         // Handle product images
-        if (files && files.length > 0) {
-            const productImages = files.map((file, index) => {
+        if (processedFiles.length > 0) {
+            const productImages = processedFiles.map((file, index) => {
                 return this.productImagesRepository.create({
                     image_url: `/uploads/products/${file.filename}`,
                     alt_text: createProductDto.name,
@@ -202,7 +215,64 @@ export class ProductsService {
         return this.findOne(savedProduct.product_id);
     }
 
-    async update(id: number, updateProductDto: UpdateProductDto, files: Express.Multer.File[]) {
+    // Helper method to process base64 images and save them to the file system
+    private async processBase64Images(imageUploads: Array<{
+        filename: string;
+        mimetype: string;
+        base64: string;
+        size: number;
+    }>): Promise<Express.Multer.File[]> {
+        const fs = require('fs');
+        const path = require('path');
+        const { v4: uuidv4 } = require('uuid');
+
+        // Ensure the upload directory exists
+        const uploadDir = path.join(process.cwd(), 'uploads', 'products');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+
+        // Process each image
+        const processedFiles: Express.Multer.File[] = [];
+
+        for (const image of imageUploads) {
+            try {
+                // Extract the base64 data (remove the data:image/jpeg;base64, part)
+                const base64Data = image.base64.split(';base64,').pop();
+                if (!base64Data) {
+                    console.error('Invalid base64 data for file:', image.filename);
+                    continue;
+                }
+
+                // Generate a unique filename
+                const uniqueFilename = `${uuidv4()}-${image.filename}`;
+                const filePath = path.join(uploadDir, uniqueFilename);
+
+                // Write the file to disk
+                fs.writeFileSync(filePath, base64Data, { encoding: 'base64' });
+
+                // Create a file object similar to what multer would create
+                const file = {
+                    fieldname: 'images',
+                    originalname: image.filename,
+                    encoding: '7bit',
+                    mimetype: image.mimetype,
+                    destination: uploadDir,
+                    filename: uniqueFilename,
+                    path: filePath,
+                    size: image.size
+                } as Express.Multer.File;
+
+                processedFiles.push(file);
+            } catch (error) {
+                console.error('Error processing base64 image:', error);
+            }
+        }
+
+        return processedFiles;
+    }
+
+    async update(id: number, updateProductDto: UpdateProductDto, files: Express.Multer.File[] = []) {
         console.log(`Updating product ${id} with data:`, updateProductDto);
         console.log('Request type:', files?.length > 0 ? 'multipart/form-data with files' : 'JSON or empty multipart');
 
@@ -242,6 +312,19 @@ export class ProductsService {
             throw new NotFoundException(`Product with ID ${id} not found`);
         }
 
+        // Process base64 image uploads if any
+        let processedFiles = [...files];
+        if (updateProductDto.image_uploads && updateProductDto.image_uploads.length > 0) {
+            console.log(`Processing ${updateProductDto.image_uploads.length} base64 encoded images for update`);
+
+            // Process each base64 image
+            const processedBase64Files = await this.processBase64Images(updateProductDto.image_uploads);
+            processedFiles = [...processedFiles, ...processedBase64Files];
+
+            // Remove the image_uploads from DTO as we've processed them
+            delete updateProductDto.image_uploads;
+        }
+
         const { category_ids, ...productData } = updateProductDto;
 
         // Now update the product with all data
@@ -262,12 +345,12 @@ export class ProductsService {
         // Handle product images
         // Only update images if files were explicitly provided or files empty array was explicitly provided
         // This allows for keeping existing images when no files are provided
-        if (files && files.length > 0) {
+        if (processedFiles.length > 0) {
             // Remove old images
             await this.productImagesRepository.delete({ product: { product_id: id } });
 
             // Create new images
-            const productImages = files.map((file, index) => {
+            const productImages = processedFiles.map((file, index) => {
                 return this.productImagesRepository.create({
                     image_url: `/uploads/products/${file.filename}`,
                     alt_text: updateProductDto.name || product.name,
@@ -276,9 +359,9 @@ export class ProductsService {
                 });
             });
             await this.productImagesRepository.save(productImages);
-        } else if (files && files.length === 0) {
+        } else if (files && files.length === 0 && !updateProductDto.image_uploads) {
             // If an empty array was explicitly provided (files is an empty array, not undefined),
-            // remove all images
+            // and no base64 images were provided, remove all images
             await this.productImagesRepository.delete({ product: { product_id: id } });
         }
 

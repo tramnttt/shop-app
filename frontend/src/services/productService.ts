@@ -39,63 +39,16 @@ export interface CreateProductDto {
     is_featured?: boolean;
     category_ids: number[];
     images?: Array<File | ProductImage>;
+    // For sending images as base64 strings
+    image_uploads?: Array<{
+        filename: string;
+        mimetype: string;
+        base64: string;
+        size: number;
+    }>;
 }
 
 export interface UpdateProductDto extends Partial<CreateProductDto> { }
-
-// Helper function to prepare FormData from CreateProductDto or UpdateProductDto
-export const prepareProductFormData = (data: CreateProductDto | UpdateProductDto): FormData => {
-    const formData = new FormData();
-
-    // Add basic fields
-    if (data.name) formData.append('name', data.name);
-    if (data.description) formData.append('description', data.description || '');
-    if (data.sku) formData.append('sku', data.sku);
-
-    // Ensure numeric values are properly converted to strings
-    if (data.base_price !== undefined) {
-        formData.append('base_price', data.base_price.toString());
-    }
-
-    if (data.sale_price !== undefined && data.sale_price !== null) {
-        formData.append('sale_price', data.sale_price.toString());
-    }
-
-    if (data.stock_quantity !== undefined) {
-        formData.append('stock_quantity', data.stock_quantity.toString());
-    }
-
-    // CRITICAL: Boolean values need explicit conversion to string 'true' or 'false'
-    if ('is_featured' in data) {
-        const isFeatured = data.is_featured === true;
-        const featuredValue = isFeatured ? 'true' : 'false';
-        console.log('prepareProductFormData is_featured:', {
-            original: data.is_featured,
-            converted: featuredValue,
-            booleanCheck: data.is_featured === true
-        });
-        formData.append('is_featured', featuredValue);
-    }
-
-    // Handle category IDs array
-    if (data.category_ids && data.category_ids.length > 0) {
-        // Note: For NestJS to properly parse array values, we need to use the correct format
-        data.category_ids.forEach(id => {
-            formData.append('category_ids[]', id.toString());
-        });
-    }
-
-    // Handle images - separate File objects from existing ProductImage references
-    if (data.images && data.images.length > 0) {
-        data.images.forEach(image => {
-            if (image instanceof File) {
-                formData.append('images', image);
-            }
-        });
-    }
-
-    return formData;
-};
 
 const handleError = (error: any) => {
     // Just throw the error without logging
@@ -131,52 +84,28 @@ export const productService = {
 
     create: async (data: CreateProductDto | FormData): Promise<Product> => {
         try {
-            // Handle both JSON and FormData
-            let requestData: FormData | CreateProductDto;
-            let contentType: string;
+            // Always use JSON format when possible
+            console.log('Creating product with data:', data);
 
-            // If FormData was passed, use it directly for file uploads
+            let response;
+
+            // Only use FormData when there are actually file uploads
             if (data instanceof FormData) {
                 console.log('Using FormData for product creation (with file uploads)');
-                requestData = data;
-                contentType = 'multipart/form-data';
 
-                // Extra validation for is_featured in FormData
-                if (data.has('is_featured')) {
-                    const featuredValue = data.get('is_featured');
-                    console.log('Creation FormData is_featured:', featuredValue);
-
-                    // Ensure it's 'true' or 'false' string
-                    if (featuredValue !== 'true' && featuredValue !== 'false') {
-                        data.delete('is_featured');
-                        data.append('is_featured', String(featuredValue) === 'true' ? 'true' : 'false');
-                    }
-                }
-            }
-            // If JSON data was passed, ensure proper types
-            else {
-                console.log('Using JSON for product creation (no file uploads)');
-                requestData = {
-                    ...data,
-                    is_featured: data.is_featured === true
-                };
-                contentType = 'application/json';
-
-                console.log('JSON creation data:', {
-                    ...requestData,
-                    is_featured: requestData.is_featured,
-                    is_featured_type: typeof requestData.is_featured
-                });
-            }
-
-            // Make the appropriate request based on content type
-            let response;
-            if (contentType === 'multipart/form-data') {
-                response = await axiosInstance.post('/products', requestData, {
+                response = await axiosInstance.post('/products', data, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
             } else {
-                response = await axiosInstance.post('/products', requestData);
+                // Use JSON format
+                console.log('Using JSON for product creation');
+
+                // Ensure boolean values are properly typed
+                if ('is_featured' in data) {
+                    data.is_featured = data.is_featured === true;
+                }
+
+                response = await axiosInstance.post('/products', data);
             }
 
             console.log('Create product response:', response.data);
@@ -189,62 +118,31 @@ export const productService = {
 
     update: async (id: number, data: UpdateProductDto | FormData): Promise<Product> => {
         try {
-            let requestData: any;
+            // Always use JSON format when possible
+            console.log('Updating product with data:', data);
 
-            // If FormData was passed, extract and convert to a plain object
+            let response;
+
+            // Only use FormData when there are actually file uploads
             if (data instanceof FormData) {
-                console.log('Converting FormData to JSON object');
-                requestData = {};
+                console.log('Using FormData for product update (with file uploads)');
 
-                // Extract all form fields to a plain object
-                Array.from(data.entries()).forEach(([key, value]) => {
-                    // Skip file uploads when using JSON
-                    if (value instanceof File) {
-                        console.log(`Skipping file upload for ${key} when using JSON`);
-                        return;
-                    }
-
-                    // Handle arrays (like category_ids[])
-                    if (key.endsWith('[]')) {
-                        const baseKey = key.substring(0, key.length - 2);
-                        if (!requestData[baseKey]) {
-                            requestData[baseKey] = [];
-                        }
-                        requestData[baseKey].push(value);
-                        return;
-                    }
-
-                    // Handle special fields with type conversion
-                    if (key === 'base_price' || key === 'sale_price' || key === 'stock_quantity') {
-                        requestData[key] = value === '' ? null : Number(value);
-                    } else if (key === 'is_featured') {
-                        // Ensure boolean conversion
-                        requestData[key] = value === 'true';
-                    } else {
-                        requestData[key] = value;
-                    }
+                response = await axiosInstance.patch(`/products/${id}`, data, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
                 });
             } else {
-                // Use the data object directly, ensuring is_featured is properly typed
-                requestData = {
-                    ...data,
-                    is_featured: data.is_featured === true
-                };
+                // Use JSON format
+                console.log('Using JSON for product update');
+
+                // Ensure boolean values are properly typed
+                if ('is_featured' in data) {
+                    data.is_featured = data.is_featured === true;
+                }
+
+                response = await axiosInstance.patch(`/products/${id}`, data);
             }
 
-            // Ensure is_featured is always a boolean if provided
-            if ('is_featured' in requestData) {
-                requestData.is_featured = requestData.is_featured === true;
-                console.log('JSON update is_featured:', requestData.is_featured, typeof requestData.is_featured);
-            }
-
-            console.log('Sending JSON update request to:', `/products/${id}`);
-            console.log('JSON request data:', requestData);
-
-            const response = await axiosInstance.patch(`/products/${id}`, requestData);
-
-            console.log('Update response:', response.data);
-            console.log('Response is_featured:', response.data.is_featured);
+            console.log('Update product response:', response.data);
             return response.data;
         } catch (error) {
             console.error('Error in productService.update:', error);

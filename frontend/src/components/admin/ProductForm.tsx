@@ -30,7 +30,7 @@ import {
   Star as StarIcon
 } from '@mui/icons-material';
 import { useCreateProduct, useUpdateProduct } from '../../hooks/useProducts';
-import { Product, CreateProductDto, ProductImage, prepareProductFormData, UpdateProductDto } from '../../services/productService';
+import { Product, CreateProductDto, ProductImage, UpdateProductDto } from '../../services/productService';
 import { Category } from '../../services/categoryService';
 import ImageUpload from './ImageUpload';
 import { formatImageUrl } from '../../utils/imageUtils';
@@ -109,13 +109,27 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSuccess, cat
       newErrors.sku = 'SKU is required';
     }
 
-    if (formData.base_price <= 0) {
-      newErrors.base_price = 'Price must be greater than 0';
+    // Convert to Number for reliable comparison
+    const basePrice = Number(formData.base_price);
+    
+    // Check if base_price is a valid number and not negative
+    if (isNaN(basePrice)) {
+      newErrors.base_price = 'Price must be a valid number';
+    } else if (basePrice < 0) {
+      newErrors.base_price = 'Price must be greater than or equal to 0';
     }
 
-    if (formData.sale_price !== null && formData.sale_price !== undefined && 
-        formData.sale_price >= formData.base_price) {
-      newErrors.sale_price = 'Sale price must be less than base price';
+    // Check sale price if provided
+    if (formData.sale_price !== null && formData.sale_price !== undefined) {
+      const salePrice = Number(formData.sale_price);
+      
+      if (isNaN(salePrice)) {
+        newErrors.sale_price = 'Sale price must be a valid number';
+      } else if (salePrice < 0) {
+        newErrors.sale_price = 'Sale price must be greater than or equal to 0';
+      } else if (salePrice >= basePrice && basePrice > 0) {
+        newErrors.sale_price = 'Sale price must be less than base price';
+      }
     }
 
     if (formData.stock_quantity < 0) {
@@ -151,17 +165,28 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSuccess, cat
 
   const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    let parsedValue: number | null = parseFloat(value);
     
-    if (isNaN(parsedValue)) {
-      parsedValue = name === 'sale_price' ? null : 0;
+    // For empty inputs
+    if (value === '') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: name === 'sale_price' ? null : 0
+      }));
+      return;
     }
-
-    setFormData(prev => ({
-      ...prev,
-      [name]: parsedValue
-    }));
     
+    // Try to parse as a number
+    const parsedValue = parseFloat(value);
+    
+    // Only update if it's a valid number
+    if (!isNaN(parsedValue)) {
+      setFormData(prev => ({
+        ...prev,
+        [name]: parsedValue
+      }));
+    }
+    
+    // Clear error when field is changed
     if (errors[name as keyof FormErrors]) {
       setErrors(prev => {
         const newErrors = { ...prev };
@@ -298,124 +323,187 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSuccess, cat
     setSelectedImages(prevFiles => [...prevFiles, ...files]);
   };
 
+  // Function to resize image and convert to base64
+  const resizeAndConvertToBase64 = (file: File, maxWidth = 800, maxHeight = 800): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (e) => {
+        const img = new Image();
+        img.src = e.target?.result as string;
+        img.onload = () => {
+          // Calculate new dimensions
+          let width = img.width;
+          let height = img.height;
+          
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round(height * (maxWidth / width));
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round(width * (maxHeight / height));
+              height = maxHeight;
+            }
+          }
+          
+          // Create canvas and resize
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          
+          // Draw resized image to canvas
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Get base64 data with reduced quality
+          const base64 = canvas.toDataURL(file.type, 0.7); // 0.7 quality
+          resolve(base64);
+        };
+        img.onerror = () => {
+          reject(new Error('Failed to load image'));
+        };
+      };
+      reader.onerror = error => reject(error);
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    
+    // Log the current form data before validation
+    console.log('Form data before validation:', {
+      ...formData,
+      base_price: {
+        value: formData.base_price,
+        type: typeof formData.base_price,
+        asNumber: Number(formData.base_price),
+        isValid: !isNaN(Number(formData.base_price)),
+      }
+    });
+    
+    if (!validateForm()) {
+      console.log('Form validation failed, not submitting');
+      return;
+    }
 
     try {
       setError('');
       
-      // Create a clean product data object for both create and update
-      const productData: CreateProductDto | UpdateProductDto = {
-        name: formData.name,
-        description: formData.description,
-        sku: formData.sku,
-        base_price: formData.base_price,
-        stock_quantity: formData.stock_quantity,
+      // Convert numbers with extra safety checks
+      const basePrice = Number(formData.base_price);
+      const safeBasePrice = !isNaN(basePrice) ? basePrice : 0;
+      
+      const stockQuantity = Number(formData.stock_quantity);
+      const safeStockQuantity = !isNaN(stockQuantity) ? Math.floor(stockQuantity) : 0;
+      
+      // Create the product data object with explicitly converted values
+      const productData: any = {
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        sku: formData.sku.trim(),
+        base_price: safeBasePrice,
+        stock_quantity: safeStockQuantity,
         category_ids: formData.category_ids,
-        is_featured: formData.is_featured === true  // CRITICAL: Ensure proper boolean
+        is_featured: formData.is_featured === true
       };
       
-      // Only include optional fields if they have values
+      // Log detailed information about the price in the payload
+      console.log('Product prices (raw & processed):', {
+        raw_base_price: {
+          value: formData.base_price,
+          type: typeof formData.base_price
+        },
+        processed_base_price: {
+          value: productData.base_price,
+          type: typeof productData.base_price
+        }
+      });
+      
+      // Only include sale price if it has a valid value
       if (formData.sale_price !== null && formData.sale_price !== undefined) {
-        productData.sale_price = formData.sale_price;
+        const salePrice = Number(formData.sale_price);
+        if (!isNaN(salePrice)) {
+          productData.sale_price = salePrice;
+        }
       }
 
-      console.log('Product data object:', JSON.stringify(productData));
-      console.log('is_featured value:', productData.is_featured);
-      console.log('is_featured type:', typeof productData.is_featured);
-      
-      // If we have image files to upload, we need to use FormData
-      const hasImageFiles = selectedImages.length > 0;
+      // If we have image files, convert them to base64 and include them in the JSON payload
+      if (selectedImages.length > 0) {
+        // Convert all selected images to base64
+        const base64Images = await Promise.all(
+          selectedImages.map(async (file) => {
+            const base64 = await resizeAndConvertToBase64(file);
+            return {
+              filename: file.name,
+              mimetype: file.type,
+              base64: base64,
+              size: file.size
+            };
+          })
+        );
+        
+        // Add images to product data
+        productData.image_uploads = base64Images;
+      }
+
+      // Final check on the data being sent
+      console.log('Final product data to be sent:', {
+        ...productData,
+        base_price_type: typeof productData.base_price,
+        base_price_isNaN: isNaN(productData.base_price),
+        image_uploads: productData.image_uploads ? `${productData.image_uploads.length} images` : 'none'
+      });
       
       // For product updates
       if (product) {
-        console.log('USING JSON FORMAT for product update');
-        console.log('Updating product with ID:', product.product_id);
-        console.log('Original product featured status:', product.is_featured);
-        
-        // If we don't have new images, use JSON directly
-        if (!hasImageFiles) {
-          const updatedProduct = await updateProduct.mutateAsync({ 
-            id: product.product_id, 
-            data: productData 
-          });
-          console.log('Update response:', JSON.stringify(updatedProduct));
-          console.log('Update response featured status:', updatedProduct.is_featured);
-        }
-        // If we do have new images, we need to use FormData
-        else {
-          console.log('Using FormData for update because we have image files');
-          const processedData = convertToFormData(productData, selectedImages);
-          const updatedProduct = await updateProduct.mutateAsync({ 
-            id: product.product_id, 
-            data: processedData 
-          });
-          console.log('Update response:', JSON.stringify(updatedProduct));
-        }
+        console.log('UPDATING PRODUCT with ID:', product.product_id);
+        const updatedProduct = await updateProduct.mutateAsync({ 
+          id: product.product_id, 
+          data: productData
+        });
+        console.log('Update successful, response:', updatedProduct);
       } 
       // For new products
       else {
-        console.log('Creating new product');
-        
-        // If we don't have images, use JSON directly
-        if (!hasImageFiles) {
-          console.log('USING JSON FORMAT for product creation');
-          await createProduct.mutateAsync(productData as CreateProductDto);
-        }
-        // If we have images, use FormData
-        else {
-          console.log('Using FormData for creation because we have image files');
-          const processedData = convertToFormData(productData, selectedImages);
-          await createProduct.mutateAsync(processedData);
-        }
+        console.log('CREATING NEW PRODUCT');
+        const createdProduct = await createProduct.mutateAsync(productData as CreateProductDto);
+        console.log('Creation successful, response:', createdProduct);
       }
 
       onSubmitSuccess();
     } catch (err: any) {
-      console.error('Error saving product:', err);
+      console.error('ERROR saving product:', err);
+      
+      // Detailed error logging
+      if (err.response) {
+        console.error('Error response:', {
+          status: err.response.status,
+          statusText: err.response.statusText,
+          data: err.response.data,
+          headers: err.response.headers
+        });
+        
+        // Special handling for validation errors
+        if (err.response.status === 400 && Array.isArray(err.response.data.message)) {
+          const validationErrors = err.response.data.message;
+          console.error('Validation errors:', validationErrors);
+          
+          // Extract specific validation errors for display
+          const errorMessages = validationErrors.map((error: any) => {
+            const property = error.property;
+            const constraints = Object.values(error.constraints || {}).join(', ');
+            return `${property}: ${constraints}`;
+          }).join('\n');
+          
+          setError(`Validation failed: ${errorMessages}`);
+          return;
+        }
+      }
+      
       setError(err.response?.data?.message || 'An error occurred while saving the product');
     }
-  };
-
-  // Helper function to convert product data to FormData when we have images
-  const convertToFormData = (data: CreateProductDto | UpdateProductDto, images: File[]): FormData => {
-    const formData = new FormData();
-    
-    // Add basic fields
-    if (data.name) formData.append('name', data.name);
-    if (data.description) formData.append('description', data.description || '');
-    if (data.sku) formData.append('sku', data.sku);
-    
-    // Numeric values
-    if (data.base_price !== undefined) {
-      formData.append('base_price', data.base_price.toString());
-    }
-    if (data.stock_quantity !== undefined) {
-      formData.append('stock_quantity', data.stock_quantity.toString());
-    }
-    if (data.sale_price !== null && data.sale_price !== undefined) {
-      formData.append('sale_price', data.sale_price.toString());
-    }
-    
-    // Boolean values - CRITICAL: proper conversion
-    const isFeaturedValue = data.is_featured === true ? 'true' : 'false';
-    formData.append('is_featured', isFeaturedValue);
-    console.log('FormData is_featured value:', isFeaturedValue);
-    
-    // Categories
-    if (data.category_ids) {
-      data.category_ids.forEach(id => {
-        formData.append('category_ids[]', id.toString());
-      });
-    }
-    
-    // Add images
-    images.forEach(image => {
-      formData.append('images', image);
-    });
-    
-    return formData;
   };
 
   const isLoading = createProduct.isLoading || updateProduct.isLoading;
@@ -519,10 +607,24 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSuccess, cat
             value={formData.base_price}
             onChange={handleNumberChange}
             error={!!errors.base_price}
-            helperText={errors.base_price}
+            helperText={errors.base_price || "Enter 0 or greater"}
+            placeholder="0.00"
             InputProps={{
               startAdornment: <InputAdornment position="start">$</InputAdornment>,
-              inputProps: { min: 0, step: 0.01 }
+              inputProps: { 
+                min: 0, 
+                step: 0.01,
+                onBlur: (e) => {
+                  // Ensure we have a valid number on blur
+                  const value = e.target.value;
+                  if (value === '') {
+                    setFormData(prev => ({
+                      ...prev,
+                      base_price: 0
+                    }));
+                  }
+                }
+              }
             }}
             disabled={isLoading}
           />

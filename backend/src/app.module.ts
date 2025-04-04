@@ -20,7 +20,6 @@ import { dataSourceOptions } from './config/typeorm.config';
         TypeOrmModule.forRoot({
             ...dataSourceOptions,
             autoLoadEntities: true,
-            synchronize: false,
             migrationsRun: false,
         }),
         TypeOrmModule.forFeature([Customer]),

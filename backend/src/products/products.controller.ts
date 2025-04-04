@@ -1,11 +1,9 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, ParseIntPipe, DefaultValuePipe, UseInterceptors, UploadedFiles, BadRequestException } from '@nestjs/common';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, ParseIntPipe, DefaultValuePipe, BadRequestException } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
-import { fileUploadConfig } from '../config/file-upload.config';
 
 @Controller('products')
 export class ProductsController {
@@ -41,31 +39,61 @@ export class ProductsController {
     // Admin routes
     @Post()
     @UseGuards(JwtAuthGuard, AdminGuard)
-    @UseInterceptors(FilesInterceptor('images', 5, fileUploadConfig))
     async create(
-        @Body() createProductDto: CreateProductDto,
-        @UploadedFiles() files: Express.Multer.File[]
+        @Body() createProductDto: CreateProductDto
     ) {
-        if (files && files.length > 5) {
-            throw new BadRequestException('Maximum 5 images allowed');
+        // Handle JSON data from FormData
+        let productData = createProductDto;
+        console.log('*** CONTROLLER CREATE REQUEST ***');
+
+        // Log the entire raw request body for debugging
+        console.log('FULL REQUEST BODY:', JSON.stringify(createProductDto, null, 2));
+
+        if (createProductDto.data) {
+            try {
+                // Parse the JSON data from FormData
+                const parsedData = JSON.parse(createProductDto.data);
+                console.log('Parsed data from FormData:', parsedData);
+
+                // Merge the parsed data into our DTO
+                productData = { ...parsedData };
+            } catch (error) {
+                console.error('Error parsing JSON data:', error);
+                throw new BadRequestException('Invalid product data format');
+            }
         }
+
+        // Enhanced debugging for price field
+        console.log('📌 PRODUCT CREATE - PRICE DEBUG 📌');
+        console.log('Raw base_price:', {
+            value: productData.base_price,
+            type: typeof productData.base_price,
+            asNumber: Number(productData.base_price),
+            isNaN: isNaN(Number(productData.base_price)),
+            asString: String(productData.base_price),
+            valueOf: productData.base_price?.valueOf(),
+            typeofValueOf: productData.base_price?.valueOf ? typeof productData.base_price.valueOf() : 'N/A',
+            isLessThanOne: productData.base_price < 1 ? true : false
+        });
 
         // Debug: Log the raw request body
         console.log('*** CONTROLLER CREATE REQUEST ***');
-        console.log('Request Content-Type:', files?.length ? 'multipart/form-data' : 'application/json');
-        console.log('Raw is_featured value:', createProductDto.is_featured);
-        console.log('Raw is_featured type:', typeof createProductDto.is_featured);
-        console.log('is_featured in body:', 'is_featured' in createProductDto);
+        console.log('Request Content-Type:', 'application/json');
+        console.log('Raw is_featured value:', productData.is_featured);
+        console.log('Raw is_featured type:', typeof productData.is_featured);
+        console.log('is_featured in body:', 'is_featured' in productData);
 
         // Detailed DTO inspection
-        const dtoProperties = Object.keys(createProductDto);
+        const dtoProperties = Object.keys(productData);
         console.log('DTO properties:', dtoProperties);
 
         try {
-            const result = await this.productsService.create(createProductDto, files || []);
+            const result = await this.productsService.create(productData, []);
             console.log('*** CONTROLLER CREATE RESPONSE ***');
             console.log('Response is_featured:', result.is_featured);
             console.log('Response is_featured type:', typeof result.is_featured);
+            console.log('Response base_price:', result.base_price);
+            console.log('Response base_price type:', typeof result.base_price);
             return result;
         } catch (error) {
             console.error('Error creating product:', error);
@@ -75,38 +103,48 @@ export class ProductsController {
 
     @Patch(':id')
     @UseGuards(JwtAuthGuard, AdminGuard)
-    @UseInterceptors(FilesInterceptor('images', 5, fileUploadConfig))
     async update(
         @Param('id', ParseIntPipe) id: number,
-        @Body() updateProductDto: UpdateProductDto,
-        @UploadedFiles() files: Express.Multer.File[]
+        @Body() updateProductDto: UpdateProductDto
     ) {
-        if (files && files.length > 5) {
-            throw new BadRequestException('Maximum 5 images allowed');
+        // Handle JSON data from FormData
+        let productData = updateProductDto;
+        if (updateProductDto.data) {
+            try {
+                // Parse the JSON data from FormData
+                const parsedData = JSON.parse(updateProductDto.data);
+                console.log('Parsed data from FormData:', parsedData);
+
+                // Merge the parsed data into our DTO
+                productData = { ...parsedData };
+            } catch (error) {
+                console.error('Error parsing JSON data:', error);
+                throw new BadRequestException('Invalid product data format');
+            }
         }
 
         // Debug: Log the raw request body
         console.log('*** CONTROLLER UPDATE REQUEST ***');
         console.log('Request ID:', id);
-        console.log('Request Content-Type:', files?.length ? 'multipart/form-data' : 'application/json');
-        console.log('Raw is_featured value:', updateProductDto.is_featured);
-        console.log('Raw is_featured type:', typeof updateProductDto.is_featured);
-        console.log('is_featured in body:', 'is_featured' in updateProductDto);
+        console.log('Request Content-Type:', 'application/json');
+        console.log('Raw is_featured value:', productData.is_featured);
+        console.log('Raw is_featured type:', typeof productData.is_featured);
+        console.log('is_featured in body:', 'is_featured' in productData);
 
         // Detailed DTO inspection
-        const dtoProperties = Object.keys(updateProductDto);
+        const dtoProperties = Object.keys(productData);
         console.log('DTO properties:', dtoProperties);
 
         // Debug: Log key values
         console.log('Update product DTO values:', {
-            name: updateProductDto.name,
-            price: updateProductDto.base_price,
-            is_featured: updateProductDto.is_featured,
-            is_featured_type: typeof updateProductDto.is_featured
+            name: productData.name,
+            price: productData.base_price,
+            is_featured: productData.is_featured,
+            is_featured_type: typeof productData.is_featured
         });
 
         try {
-            const result = await this.productsService.update(id, updateProductDto, files || []);
+            const result = await this.productsService.update(id, productData, []);
             console.log('*** CONTROLLER UPDATE RESPONSE ***');
             console.log('Response is_featured:', result.is_featured);
             console.log('Response is_featured type:', typeof result.is_featured);

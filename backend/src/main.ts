@@ -6,14 +6,36 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AdminSeeder } from './database/seeders/admin.seeder';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
+import * as express from 'express';
 
 async function bootstrap() {
     const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+    // Increase JSON payload size limit for handling base64 encoded images
+    app.use(require('body-parser').json({ limit: '50mb' }));
+    app.use(require('body-parser').urlencoded({ limit: '50mb', extended: true }));
+
     // Configure global validation pipe
     app.useGlobalPipes(new ValidationPipe({
         transform: true,
-        transformOptions: { enableImplicitConversion: true },
+        transformOptions: {
+            enableImplicitConversion: true,
+            // Enable type conversion for primitive types
+            exposeDefaultValues: true,
+        },
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        disableErrorMessages: false,
+        stopAtFirstError: false,   // Continue validation to collect all errors
+        validationError: {
+            target: false,
+            value: true
+        },
+        exceptionFactory: (errors) => {
+            console.log('Validation errors:', JSON.stringify(errors, null, 2));
+            const { BadRequestException } = require('@nestjs/common');
+            return new BadRequestException(errors);
+        }
     }));
 
     // Configure CORS - more permissive settings for development
@@ -45,9 +67,7 @@ async function bootstrap() {
     SwaggerModule.setup('api', app, document);
 
     // Serve static files from uploads directory
-    app.useStaticAssets(join(__dirname, '..', 'uploads'), {
-        prefix: '/uploads/',
-    });
+    app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
 
     // Set API prefix for all endpoints
     app.setGlobalPrefix('api');
