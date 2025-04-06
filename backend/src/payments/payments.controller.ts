@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, UseGuards, HttpCode, Req } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
@@ -24,6 +24,15 @@ export class PaymentsController {
     @ApiResponse({ status: 200, description: 'Returns QR code data' })
     async generateMoMoQR(@Body() body: { orderId: number }) {
         return this.paymentsService.generateMoMoQR(body.orderId);
+    }
+
+    @Post('momo/callback')
+    @HttpCode(200)
+    @ApiOperation({ summary: 'MoMo payment callback endpoint' })
+    @ApiResponse({ status: 200, description: 'Callback processed' })
+    async momoCallback(@Body() callbackData: any) {
+        await this.paymentsService.handleMoMoCallback(callbackData);
+        return { resultCode: 0, message: 'success' };
     }
 
     @Get('status/:orderId')

@@ -27,6 +27,7 @@ export interface QRCodeData {
     qrCode: string;
     amount: number;
     expiresAt: string; // ISO date string
+    paymentUrl?: string; // Optional direct payment URL for mobile/web
 }
 
 export class UpdateOrderStatusDto {

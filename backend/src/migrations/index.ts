@@ -11,6 +11,11 @@ import { InitialDbSetup1743744927552 } from './1743744927552-InitialDbSetup';
 import { AddProductImageTable1743744927553 } from './1743744927553-AddProductImageTable';
 import { AddUploadsDirCheck1743744927554 } from './1743744927554-AddUploadsDirCheck';
 import { AddProductImageTable1743784309333 } from './1743784309333-AddProductImageTable';
+import { AddReviewGuestFields1743829623936 } from './1743829623936-AddReviewGuestFields';
+import { AddReviewGuestNames1743829809614 } from './1743829809614-AddReviewGuestNames';
+import { AddReviewGuestColumns1743836151224 } from './1743836151224-AddReviewGuestColumns';
+import { AddReviewGuestColumnsSequential1743963704225 } from './1743963704225-AddReviewGuestColumnsSequential';
+import { AddParentCategoryId1743963965181 } from './1743963965181-AddParentCategoryId';
 
 // Export migrations in the order they should be executed
 export const migrations = [
@@ -26,5 +31,10 @@ export const migrations = [
     InitialDbSetup1743744927552,
     AddProductImageTable1743744927553,
     AddUploadsDirCheck1743744927554,
-    AddProductImageTable1743784309333
+    AddProductImageTable1743784309333,
+    AddReviewGuestFields1743829623936,
+    AddReviewGuestNames1743829809614,
+    AddReviewGuestColumns1743836151224,
+    AddReviewGuestColumnsSequential1743963704225,
+    AddParentCategoryId1743963965181
 ];
