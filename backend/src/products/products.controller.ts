@@ -20,6 +20,7 @@ export class ProductsController {
         @Query('minPrice') minPrice?: string,
         @Query('maxPrice') maxPrice?: string
     ) {
+        console.log('featured', featured);
         return this.productsService.findAll({
             page,
             limit,

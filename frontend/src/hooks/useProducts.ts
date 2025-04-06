@@ -10,10 +10,19 @@ export const useProducts = (params?: {
     minPrice?: number;
     maxPrice?: number;
 }) => {
+    // Convert featured boolean to numeric 0/1 for MySQL tinyint compatibility
+    const apiParams = params ? { ...params } : undefined;
+
+    if (apiParams && 'featured' in apiParams) {
+        // Convert boolean to numeric 1/0 for MySQL tinyint column
+        // Use type assertion to avoid TypeScript errors
+        (apiParams as any).featured = apiParams.featured === true ? 1 : 0;
+    }
+
     return useQuery({
         queryKey: ['products', params],
         queryFn: async () => {
-            const result = await productService.getAll(params);
+            const result = await productService.getAll(apiParams);
             return result;
         },
         staleTime: 10000, // 10 seconds - shorter stale time for more frequent refetches

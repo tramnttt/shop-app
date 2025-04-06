@@ -49,7 +49,9 @@ export class ProductsService {
             }
 
             if (query.featured !== undefined) {
-                queryBuilder.andWhere('product.is_featured = :featured', { featured: query.featured });
+                // Convert boolean to 0/1 for MySQL tinyint field
+                const featuredValue = query.featured === true || query.featured === 'true' || query.featured === 1 ? 1 : 0;
+                queryBuilder.andWhere('product.is_featured = :featured', { featured: featuredValue });
             }
 
             if (query.minPrice !== undefined) {

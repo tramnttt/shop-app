@@ -61,7 +61,7 @@ export const productService = {
         limit?: number;
         search?: string;
         categoryId?: number;
-        featured?: boolean;
+        featured?: boolean | number;
         minPrice?: number;
         maxPrice?: number;
     }): Promise<{ products: Product[]; totalCount: number; currentPage: number; totalPages: number }> => {
