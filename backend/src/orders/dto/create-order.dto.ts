@@ -28,6 +28,7 @@ export interface QRCodeData {
     amount: number;
     expiresAt: string; // ISO date string
     paymentUrl?: string; // Optional direct payment URL for mobile/web
+    partnerRefId?: string; // Reference ID for MoMo payment tracking
 }
 
 export class UpdateOrderStatusDto {

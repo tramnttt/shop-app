@@ -36,7 +36,8 @@ export class OrdersService {
         // Build the query
         const queryBuilder = this.ordersRepository.createQueryBuilder('order')
             .leftJoinAndSelect('order.orderItems', 'orderItems')
-            .leftJoinAndSelect('orderItems.product', 'product');
+            .leftJoinAndSelect('orderItems.product', 'product')
+            .leftJoinAndSelect('order.payments', 'payments');
 
         // Apply filters
         if (filters.status) {
@@ -44,9 +45,9 @@ export class OrdersService {
         }
 
         if (filters.paymentStatus) {
-            // Since paymentStatus might be stored in a separate field or property
-            // Check your database schema and adjust accordingly
-            queryBuilder.andWhere('order.payment_status = :paymentStatus', { paymentStatus: filters.paymentStatus });
+            // Filter by payment status in the payments table
+            queryBuilder.andWhere('EXISTS (SELECT 1 FROM payment WHERE payment.order_id = order.id AND payment.status = :paymentStatus)',
+                { paymentStatus: filters.paymentStatus });
         }
 
         if (filters.customerId) {
@@ -135,7 +136,7 @@ export class OrdersService {
     async getOrderByIdAdmin(orderId: number) {
         const order = await this.ordersRepository.findOne({
             where: { id: orderId },
-            relations: ['orderItems', 'orderItems.product'],
+            relations: ['orderItems', 'orderItems.product', 'payments'],
         });
 
         if (!order) {
@@ -235,7 +236,7 @@ export class OrdersService {
     async getUserOrders(customerId: number) {
         const orders = await this.ordersRepository.find({
             where: { customer_id: customerId },
-            relations: ['orderItems', 'orderItems.product'],
+            relations: ['orderItems', 'orderItems.product', 'payments'],
             order: { created_at: 'DESC' },
         });
 
@@ -245,7 +246,7 @@ export class OrdersService {
     async getOrderById(orderId: number, customerId: number) {
         const order = await this.ordersRepository.findOne({
             where: { id: orderId, customer_id: customerId }, // Use the id field
-            relations: ['orderItems', 'orderItems.product'],
+            relations: ['orderItems', 'orderItems.product', 'payments'],
         });
 
         if (!order) {
@@ -275,46 +276,36 @@ export class OrdersService {
     }
 
     private transformOrderToDto(order: Order) {
-        // Transform order items
-        const items = order.orderItems.map(item => {
-            // Find the main image URL if available
-            const imageUrl = item.product?.images && item.product.images.length > 0
-                ? item.product.images[0]?.image_url
-                : null;
+        const orderItems = order.orderItems || [];
+        let paymentStatus = PaymentStatus.PENDING;
+        let paymentMethod = '';
 
-            return {
-                id: item.product_id,
-                name: item.name || (item.product?.name || 'Unknown Product'), // Use item.name directly if available
-                price: item.price ? parseFloat(item.price.toString()) : parseFloat(item.unit_price.toString()), // Use price field if available
-                quantity: item.quantity,
-                image_url: imageUrl,
-            };
-        });
+        // Get payment information if available
+        if (order.payments && order.payments.length > 0) {
+            // Find the most recent payment
+            const latestPayment = order.payments.sort((a, b) =>
+                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            )[0];
 
-        // Determine payment method from order data (this is a placeholder)
-        // In real implementation, you would store this in the database
-        const paymentMethod = PaymentMethod.COD; // Default to COD for now
+            paymentStatus = latestPayment.status as PaymentStatus;
+            paymentMethod = latestPayment.payment_method;
+        }
 
         return {
-            id: order.id, // Use the id field
+            id: order.id,
             userId: order.customer_id,
-            orderNumber: `ORD-${order.id}`, // Use the id field
+            orderNumber: `ORD-${order.id}-${new Date(order.created_at).getTime().toString().slice(-6)}`,
             status: order.status,
-            items,
-            // Use the total field directly if available, otherwise fall back to total_amount
-            total: order.total ? parseFloat(order.total.toString()) : parseFloat(order.total_amount.toString()),
-            orderDetails: {
-                // This is a placeholder - in a real implementation, you would
-                // either store order details in a separate table or serialize them
-                fullName: 'Retrieved from database',
-                email: 'Retrieved from database',
-                phone: 'Retrieved from database',
-                address: 'Retrieved from database',
-                city: 'Retrieved from database',
-                postalCode: 'Retrieved from database',
-            },
+            items: orderItems.map(item => ({
+                id: item.product_id,
+                quantity: item.quantity,
+                price: parseFloat(String(item.price || item.unit_price)),
+                name: item.name,
+                image: item.product?.images?.[0]?.image_url || null,
+            })),
+            total: parseFloat(String(order.total_amount)),
             paymentMethod,
-            paymentStatus: PaymentStatus.PENDING, // Placeholder
+            paymentStatus,
             createdAt: order.created_at.toISOString(),
             updatedAt: order.updated_at.toISOString(),
         };

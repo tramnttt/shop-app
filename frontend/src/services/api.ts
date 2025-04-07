@@ -32,7 +32,7 @@ api.interceptors.request.use(
 export const authAPI = {
     login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
         try {
-            const response = await api.post<AuthResponse>('/auth/login', credentials);
+            const response = await api.post<AuthResponse>('/api/auth/login', credentials);
             localStorage.setItem('token', response.data.access_token);
             return response.data;
         } catch (error) {
@@ -42,7 +42,7 @@ export const authAPI = {
     },
     register: async (data: RegisterData): Promise<AuthResponse> => {
         try {
-            const response = await api.post<AuthResponse>('/auth/register', data);
+            const response = await api.post<AuthResponse>('/api/auth/register', data);
             localStorage.setItem('token', response.data.access_token);
             return response.data;
         } catch (error) {
@@ -62,7 +62,7 @@ export const authAPI = {
 export const productsAPI = {
     getAll: async (params = {}): Promise<Product[]> => {
         try {
-            const response = await api.get<Product[]>('/products', { params });
+            const response = await api.get<Product[]>('/api/products', { params });
             return response.data;
         } catch (error) {
             console.error('Error fetching products:', error);
@@ -71,7 +71,7 @@ export const productsAPI = {
     },
     getOne: async (id: number): Promise<Product> => {
         try {
-            const response = await api.get<Product>(`/products/${id}`);
+            const response = await api.get<Product>(`/api/products/${id}`);
             return response.data;
         } catch (error) {
             console.error(`Error fetching product ${id}:`, error);
@@ -80,7 +80,7 @@ export const productsAPI = {
     },
     getByCategory: async (categoryId: number): Promise<Product[]> => {
         try {
-            const response = await api.get<Product[]>(`/categories/${categoryId}/products`);
+            const response = await api.get<Product[]>(`/api/categories/${categoryId}/products`);
             return response.data;
         } catch (error) {
             console.error(`Error fetching products for category ${categoryId}:`, error);
@@ -88,15 +88,15 @@ export const productsAPI = {
         }
     },
     create: async (product: Partial<Product>): Promise<Product> => {
-        const response = await api.post<Product>('/products', product);
+        const response = await api.post<Product>('/api/products', product);
         return response.data;
     },
     update: async (id: number, product: Partial<Product>): Promise<Product> => {
-        const response = await api.patch<Product>(`/products/${id}`, product);
+        const response = await api.patch<Product>(`/api/products/${id}`, product);
         return response.data;
     },
     delete: async (id: number): Promise<void> => {
-        await api.delete(`/products/${id}`);
+        await api.delete(`/api/products/${id}`);
     }
 };
 
@@ -104,7 +104,7 @@ export const productsAPI = {
 export const categoriesAPI = {
     getAll: async (): Promise<Category[]> => {
         try {
-            const response = await api.get<Category[]>('/categories');
+            const response = await api.get<Category[]>('/api/categories');
             return response.data;
         } catch (error) {
             console.error('Error fetching categories:', error);
@@ -113,7 +113,7 @@ export const categoriesAPI = {
     },
     getOne: async (id: number): Promise<Category> => {
         try {
-            const response = await api.get<Category>(`/categories/${id}`);
+            const response = await api.get<Category>(`/api/categories/${id}`);
             return response.data;
         } catch (error) {
             console.error(`Error fetching category ${id}:`, error);
@@ -121,15 +121,15 @@ export const categoriesAPI = {
         }
     },
     create: async (category: Partial<Category>): Promise<Category> => {
-        const response = await api.post<Category>('/categories', category);
+        const response = await api.post<Category>('/api/categories', category);
         return response.data;
     },
     update: async (id: number, category: Partial<Category>): Promise<Category> => {
-        const response = await api.patch<Category>(`/categories/${id}`, category);
+        const response = await api.patch<Category>(`/api/categories/${id}`, category);
         return response.data;
     },
     delete: async (id: number): Promise<void> => {
-        await api.delete(`/categories/${id}`);
+        await api.delete(`/api/categories/${id}`);
     }
 };
 

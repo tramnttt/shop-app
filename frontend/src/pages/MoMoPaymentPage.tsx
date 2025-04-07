@@ -22,7 +22,7 @@ const MoMoPaymentPage: React.FC = () => {
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [qrData, setQrData] = useState<{ qrCodeUrl: string; amount: number } | null>(null);
+  const [qrData, setQrData] = useState<{ qrCode: string; amount: number } | null>(null);
   const [remainingTime, setRemainingTime] = useState(1800); // 30 minutes in seconds
   const [paymentChecking, setPaymentChecking] = useState(false);
 
@@ -40,7 +40,7 @@ const MoMoPaymentPage: React.FC = () => {
     setPaymentChecking(true);
     
     checkPaymentStatus.mutate(parseInt(orderId), {
-      onSuccess: (data) => {
+      onSuccess: (data: { status: PaymentStatus }) => {
         if (data.status === PaymentStatus.PAID) {
           // The navigation and basket clearing are handled in the hook
           console.log("Payment completed! Basket will be cleared by the useOrder hook");
@@ -201,11 +201,16 @@ const MoMoPaymentPage: React.FC = () => {
                 opacity: expired ? 0.6 : 1
               }}
             >
-              <Box
+              <Box 
                 component="img"
-                src={qrData.qrCodeUrl}
+                src={qrData.qrCode}
                 alt="MoMo QR Code"
-                sx={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  opacity: expired ? 0.5 : 1
+                }}
               />
               
               {expired && (

@@ -167,7 +167,7 @@ const VietQRPaymentPage: React.FC = () => {
             
             <Box sx={{ textAlign: 'center', mb: 3 }}>
               <img 
-                src={qrCodeData.qrCodeUrl} 
+                src={qrCodeData.qrCode} 
                 alt="VietQR Payment Code" 
                 style={{ 
                   maxWidth: '100%', 

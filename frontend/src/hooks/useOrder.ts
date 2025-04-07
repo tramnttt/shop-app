@@ -26,9 +26,13 @@ export const useOrder = () => {
             // Log the user data for debugging
             console.log('Creating order with user data:', data.user);
 
+            // Get basket items from basket and ensure it's an array
+            const basketItems = Array.isArray(basket.items) ? basket.items : [];
+            console.log('Creating order with basket items:', basketItems);
+
             // Ensure we're sending the user data to the API
             return orderService.createOrder(
-                basket,
+                basketItems,
                 data.orderDetails,
                 data.paymentMethod,
                 data.user

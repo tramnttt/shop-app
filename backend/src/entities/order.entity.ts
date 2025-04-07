@@ -1,6 +1,7 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, ManyToOne, JoinColumn, OneToMany, BeforeInsert, BeforeUpdate, AfterLoad } from 'typeorm';
 import { Customer } from './customer.entity';
 import { OrderItem } from './order-item.entity';
+import { Payment } from './payment.entity';
 
 @Entity('orders')
 export class Order {
@@ -45,4 +46,7 @@ export class Order {
 
     @OneToMany(() => OrderItem, orderItem => orderItem.order)
     orderItems: OrderItem[];
+
+    @OneToMany(() => Payment, payment => payment.order)
+    payments: Payment[];
 } 

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param, UseGuards, HttpCode, Req } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, UseGuards, HttpCode, Req, HttpStatus, ParseIntPipe, Query } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
@@ -8,39 +8,65 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 export class PaymentsController {
     constructor(private readonly paymentsService: PaymentsService) { }
 
-    @Post('vietqr/generate')
+    @Post('generate-vietqr/:orderId')
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
-    @ApiOperation({ summary: 'Generate VietQR code for payment' })
-    @ApiResponse({ status: 200, description: 'Returns QR code data' })
-    async generateVietQR(@Body() body: { orderId: number; amount: number }) {
-        return this.paymentsService.generateVietQR(body.orderId, body.amount);
+    @ApiOperation({ summary: 'Generate VietQR code for an order' })
+    @ApiResponse({ status: 200, description: 'QR code generated successfully' })
+    @ApiResponse({ status: 404, description: 'Order not found' })
+    async generateVietQR(
+        @Param('orderId', ParseIntPipe) orderId: number,
+        @Body('amount') amount: number,
+    ) {
+        return this.paymentsService.generateVietQR(orderId, amount);
     }
 
-    @Post('momo/generate')
+    @Post('generate-momo/:orderId')
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
-    @ApiOperation({ summary: 'Generate MoMo QR code for payment' })
-    @ApiResponse({ status: 200, description: 'Returns QR code data' })
-    async generateMoMoQR(@Body() body: { orderId: number }) {
-        return this.paymentsService.generateMoMoQR(body.orderId);
+    @ApiOperation({ summary: 'Generate MoMo QR code for an order' })
+    @ApiResponse({ status: 200, description: 'QR code generated successfully' })
+    @ApiResponse({ status: 404, description: 'Order not found' })
+    async generateMoMoQR(
+        @Param('orderId', ParseIntPipe) orderId: number,
+    ) {
+        return this.paymentsService.generateMoMoQR(orderId);
     }
 
-    @Post('momo/callback')
-    @HttpCode(200)
-    @ApiOperation({ summary: 'MoMo payment callback endpoint' })
-    @ApiResponse({ status: 200, description: 'Callback processed' })
-    async momoCallback(@Body() callbackData: any) {
+    @Post('momo-callback')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: 'Handle MoMo payment callback' })
+    @ApiResponse({ status: 200, description: 'Callback processed successfully' })
+    async handleMoMoCallback(
+        @Body() callbackData: any,
+    ) {
         await this.paymentsService.handleMoMoCallback(callbackData);
-        return { resultCode: 0, message: 'success' };
+        return { success: true };
+    }
+
+    @Post('momo-confirm')
+    @ApiOperation({ summary: 'Confirm a MoMo payment' })
+    @ApiResponse({ status: 200, description: 'Payment confirmed successfully' })
+    async confirmMoMoPayment(
+        @Query('partnerRefId') partnerRefId: string,
+        @Query('requestType') requestType: 'capture' | 'revertAuthorize',
+    ) {
+        const success = await this.paymentsService.confirmMoMoPayment(
+            partnerRefId,
+            requestType || 'capture'
+        );
+        return { success };
     }
 
     @Get('status/:orderId')
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
-    @ApiOperation({ summary: 'Check payment status' })
-    @ApiResponse({ status: 200, description: 'Returns payment status' })
-    async checkPaymentStatus(@Param('orderId') orderId: string) {
-        return this.paymentsService.checkPaymentStatus(parseInt(orderId, 10));
+    @ApiOperation({ summary: 'Check payment status for an order' })
+    @ApiResponse({ status: 200, description: 'Payment status retrieved successfully' })
+    @ApiResponse({ status: 404, description: 'Order not found' })
+    async checkPaymentStatus(
+        @Param('orderId', ParseIntPipe) orderId: number,
+    ) {
+        return this.paymentsService.checkPaymentStatus(orderId);
     }
 } 

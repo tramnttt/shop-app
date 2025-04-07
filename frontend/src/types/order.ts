@@ -32,6 +32,9 @@ export interface Order {
     user?: UserInfo;
 }
 
+// Alias for Order type when used for creating a new order
+export type OrderData = Order;
+
 export enum OrderStatus {
     PENDING = 'pending',
     PROCESSING = 'processing',
@@ -61,8 +64,10 @@ export interface VietQRConfig {
 }
 
 export interface QRCodeData {
-    qrCodeUrl: string;
-    expiresAt: string;
     orderId: number;
+    qrCode: string;
     amount: number;
+    expiresAt: string;
+    paymentUrl?: string;
+    partnerRefId?: string;
 }

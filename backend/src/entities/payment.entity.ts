@@ -33,7 +33,7 @@ export class Payment {
     @DeleteDateColumn({ nullable: true })
     deleted_at: Date;
 
-    @ManyToOne(() => Order)
+    @ManyToOne(() => Order, order => order.payments, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'order_id' })
     order: Order;
 } 

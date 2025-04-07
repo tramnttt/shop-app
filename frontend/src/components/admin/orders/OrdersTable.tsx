@@ -13,6 +13,7 @@ import {
 } from '@mui/icons-material';
 import { useAdminOrders, OrderStatus, PaymentStatus, OrderType } from '../../../hooks/useAdminOrders';
 import { formatCurrency } from '../../../utils/format';
+import { format } from 'date-fns';
 
 // Order Status Colors
 const getStatusColor = (status: OrderStatus) => {
@@ -36,9 +37,9 @@ const getPaymentStatusColor = (status: PaymentStatus) => {
   }
 };
 
-// Format date strings
+// Format date helper
 const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleString();
+  return format(new Date(dateString), 'MMM dd, yyyy HH:mm');
 };
 
 const OrdersTable: React.FC = () => {
@@ -196,7 +197,7 @@ const OrdersTable: React.FC = () => {
                 <TableRow key={order.id}>
                   <TableCell>{order.orderNumber}</TableCell>
                   <TableCell>{formatDate(order.createdAt)}</TableCell>
-                  <TableCell>{order.orderDetails.fullName}</TableCell>
+                  <TableCell>{order.orderDetails?.fullName || 'N/A'}</TableCell>
                   <TableCell>
                     <Chip 
                       label={order.status} 
@@ -218,16 +219,18 @@ const OrdersTable: React.FC = () => {
                   </TableCell>
                   <TableCell>{formatCurrency(order.total)}</TableCell>
                   <TableCell>
-                    <Tooltip title="View Details">
-                      <IconButton size="small" onClick={() => handleViewClick(order)}>
-                        <ViewIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Edit Order">
-                      <IconButton size="small" onClick={() => handleEditClick(order)}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Tooltip title="View Details">
+                        <IconButton size="small" onClick={() => handleViewClick(order)}>
+                          <ViewIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Edit Order">
+                        <IconButton size="small" onClick={() => handleEditClick(order)}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
                   </TableCell>
                 </TableRow>
               ))
@@ -242,7 +245,6 @@ const OrdersTable: React.FC = () => {
               Showing {metadata.page === 1 ? 1 : (metadata.page - 1) * metadata.limit + 1} to{' '}
               {Math.min(metadata.page * metadata.limit, metadata.total)} of {metadata.total} orders
             </Typography>
-            
             <TablePagination
               component="div"
               count={metadata.total}
@@ -268,7 +270,7 @@ const OrdersTable: React.FC = () => {
       </TableContainer>
 
       {/* Filter Dialog */}
-      <Dialog open={showFilters} onClose={() => setShowFilters(false)} fullWidth maxWidth="sm">
+      <Dialog open={showFilters} onClose={() => setShowFilters(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           Filter Orders
           <IconButton 
@@ -360,7 +362,7 @@ const OrdersTable: React.FC = () => {
       </Dialog>
 
       {/* Edit Order Dialog */}
-      <Dialog open={editOrderDialog.open} onClose={handleEditClose} fullWidth maxWidth="sm">
+      <Dialog open={editOrderDialog.open} onClose={handleEditClose} maxWidth="sm" fullWidth>
         <DialogTitle>
           Edit Order {editOrderDialog.order?.orderNumber}
           <IconButton 
@@ -412,21 +414,16 @@ const OrdersTable: React.FC = () => {
           <Button onClick={handleEditClose} color="secondary">
             Cancel
           </Button>
-          <Button 
-            onClick={handleSaveEdit} 
-            color="primary"
-            disabled={updateOrderStatus.isLoading || updatePaymentStatus.isLoading}
-          >
-            {(updateOrderStatus.isLoading || updatePaymentStatus.isLoading) ? 
-              <CircularProgress size={24} /> : 'Save Changes'}
+          <Button onClick={handleSaveEdit} color="primary">
+            Save Changes
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* View Order Details Dialog */}
-      <Dialog open={viewOrderDialog.open} onClose={handleViewClose} fullWidth maxWidth="md">
+      {/* View Order Dialog */}
+      <Dialog open={viewOrderDialog.open} onClose={handleViewClose} maxWidth="md" fullWidth>
         <DialogTitle>
-          Order Details: {viewOrderDialog.order?.orderNumber}
+          Order Details {viewOrderDialog.order?.orderNumber}
           <IconButton 
             aria-label="close" 
             onClick={handleViewClose}
@@ -479,20 +476,22 @@ const OrdersTable: React.FC = () => {
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
                   <Box>
                     <Typography variant="body2" color="text.secondary">Name</Typography>
-                    <Typography>{viewOrderDialog.order.orderDetails.fullName}</Typography>
+                    <Typography>{viewOrderDialog.order.orderDetails?.fullName || 'N/A'}</Typography>
                   </Box>
                   <Box>
                     <Typography variant="body2" color="text.secondary">Email</Typography>
-                    <Typography>{viewOrderDialog.order.orderDetails.email}</Typography>
+                    <Typography>{viewOrderDialog.order.orderDetails?.email || 'N/A'}</Typography>
                   </Box>
                   <Box>
                     <Typography variant="body2" color="text.secondary">Phone</Typography>
-                    <Typography>{viewOrderDialog.order.orderDetails.phone}</Typography>
+                    <Typography>{viewOrderDialog.order.orderDetails?.phone || 'N/A'}</Typography>
                   </Box>
                   <Box>
                     <Typography variant="body2" color="text.secondary">Address</Typography>
                     <Typography>
-                      {viewOrderDialog.order.orderDetails.address}, {viewOrderDialog.order.orderDetails.city}, {viewOrderDialog.order.orderDetails.postalCode}
+                      {viewOrderDialog.order.orderDetails ? 
+                        `${viewOrderDialog.order.orderDetails.address || ''}, ${viewOrderDialog.order.orderDetails.city || ''}, ${viewOrderDialog.order.orderDetails.postalCode || ''}` : 
+                        'N/A'}
                     </Typography>
                   </Box>
                 </Box>

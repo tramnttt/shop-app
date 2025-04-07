@@ -1,84 +1,77 @@
-import { api } from '../utils/api';
-import { Basket } from '../types/basket';
-import { Order, OrderDetails, PaymentMethod, QRCodeData, PaymentStatus } from '../types/order';
-import { UserInfo } from '../hooks/useOrder';
+import { Order, OrderData, QRCodeData, PaymentStatus } from '../types/order';
+import api from './api';
+import { BasketItem } from '../types/basket';
 
-// VietQR API configuration - normally this would be server-side for security
-const VIETQR_BANK_ID = 'VIETCOMBANK'; // Replace with your bank's code
-const VIETQR_ACCOUNT_NUMBER = '1234567890'; // Replace with your account number
-const VIETQR_ACCOUNT_NAME = 'Jewelry Shop'; // Replace with your account name
+// Order service for handling order-related API calls
+export const orderService = {
+    // Create a new order with basket items and order details
+    createOrder: async (
+        basketItems: BasketItem[] | any,
+        orderDetails: any,
+        paymentMethod: string,
+        user?: any
+    ): Promise<Order> => {
+        // Ensure basketItems is an array
+        const items = Array.isArray(basketItems) ? basketItems : [];
 
-// Error handling
-const handleError = (error: any) => {
-    console.error('Order API Error:', error.response?.data || error.message);
-    throw error;
-};
-
-class OrderService {
-    // Create a new order
-    async createOrder(
-        basket: Basket,
-        orderDetails: OrderDetails,
-        paymentMethod: PaymentMethod,
-        user?: UserInfo
-    ): Promise<Order> {
-        console.log('orderService: Creating order with user data:', user);
+        // Calculate total safely using the validated array
+        const total = items.reduce((sum, item) => {
+            const price = typeof item.price === 'number' ? item.price : parseFloat(String(item.price)) || 0;
+            const quantity = typeof item.quantity === 'number' ? item.quantity : 1;
+            return sum + (price * quantity);
+        }, 0);
 
         const orderData = {
-            items: basket.items,
-            total: basket.total,
+            items: items,
+            total: total,
             orderDetails,
             paymentMethod,
             user
         };
 
-        // Log the full payload for debugging
-        console.log('orderService: Full order payload:', orderData);
-
         const response = await api.post('/api/orders', orderData);
         return response.data;
-    }
+    },
 
-    // Get order by ID
-    async getOrderById(orderId: number): Promise<Order> {
+    // Get order details by ID
+    getOrderById: async (orderId: number): Promise<Order> => {
         const response = await api.get(`/api/orders/${orderId}`);
         return response.data;
-    }
+    },
 
-    // Generate VietQR code for payment
-    async generateVietQR(order: Order): Promise<QRCodeData> {
-        const response = await api.post(`/api/payments/vietqr/generate`, {
-            orderId: order.id,
-            amount: order.total,
-        });
-        return response.data;
-    }
-
-    // Check payment status
-    async checkPaymentStatus(orderId: number): Promise<{ status: PaymentStatus }> {
-        const response = await api.get(`/api/payments/status/${orderId}`);
-        return response.data;
-    }
-
-    // Get user orders
-    async getUserOrders(): Promise<Order[]> {
+    // Get all orders for the current user
+    getUserOrders: async (): Promise<Order[]> => {
         const response = await api.get('/api/orders/user');
         return response.data;
-    }
+    },
 
-    // Cancel order
-    async cancelOrder(orderId: number): Promise<Order> {
-        const response = await api.post(`/api/orders/${orderId}/cancel`);
+    // Generate VietQR code for payment
+    generateVietQR: async (order: Order): Promise<QRCodeData> => {
+        const response = await api.post(`/api/payments/generate-vietqr/${order.id}`, { amount: order.total });
         return response.data;
-    }
+    },
 
     // Generate MoMo QR code for payment
-    async generateMoMoQR(orderId: number): Promise<QRCodeData> {
-        const response = await api.post(`/api/payments/momo/generate`, {
-            orderId: orderId
-        });
+    generateMoMoQR: async (orderId: number): Promise<QRCodeData> => {
+        const response = await api.post(`/api/payments/generate-momo/${orderId}`);
+        return response.data;
+    },
+
+    // Check payment status for an order
+    checkPaymentStatus: async (orderId: number): Promise<{ status: PaymentStatus }> => {
+        const response = await api.get(`/api/payments/status/${orderId}`);
+        return response.data;
+    },
+
+    // Confirm MoMo payment (can be used to manually complete a payment)
+    confirmMoMoPayment: async (partnerRefId: string): Promise<any> => {
+        const response = await api.post(`/api/payments/momo-confirm?partnerRefId=${partnerRefId}&requestType=capture`);
+        return response.data;
+    },
+
+    // Cancel MoMo payment (can be used to revert a payment authorization)
+    cancelMoMoPayment: async (partnerRefId: string): Promise<any> => {
+        const response = await api.post(`/api/payments/momo-confirm?partnerRefId=${partnerRefId}&requestType=revertAuthorize`);
         return response.data;
     }
-}
-
-export const orderService = new OrderService(); 
+}; 
