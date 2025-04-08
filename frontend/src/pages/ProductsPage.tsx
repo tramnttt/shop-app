@@ -25,7 +25,10 @@ import {
   CircularProgress,
   Alert,
   Paper,
-  Divider
+  Divider,
+  FormControlLabel,
+  Checkbox,
+  SelectChangeEvent
 } from '@mui/material';
 import { 
   Search, 
@@ -36,11 +39,11 @@ import {
   Star,
   StarBorder,
   Sort,
-  SortByAlpha
+  SortByAlpha,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useBasket } from '../hooks/useBasket';
-import { SelectChangeEvent } from '@mui/material';
 import { useProducts } from '../hooks/useProducts';
 import { useCategories } from '../hooks/useCategories';
 import { formatImageUrl } from '../utils/imageUtils';
@@ -310,7 +313,7 @@ const ProductsPage: React.FC = () => {
   );
   
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <Container maxWidth="xl" sx={{ py: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
         <Typography variant="h4" component="h1">
           Jewelry Collection

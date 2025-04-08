@@ -49,8 +49,9 @@ export class ProductsService {
             }
 
             if (query.featured !== undefined) {
-                // Convert boolean to 0/1 for MySQL tinyint field
+                // Handle featured parameter - convert to 1 or 0 for MySQL tinyint field
                 const featuredValue = query.featured === true || query.featured === 'true' || query.featured === 1 ? 1 : 0;
+                console.log('Setting featured filter with value:', featuredValue, 'type:', typeof featuredValue);
                 queryBuilder.andWhere('product.is_featured = :featured', { featured: featuredValue });
             }
 

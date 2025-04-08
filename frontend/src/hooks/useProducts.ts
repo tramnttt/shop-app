@@ -17,11 +17,13 @@ export const useProducts = (params?: {
         // Convert boolean to numeric 1/0 for MySQL tinyint column
         // Use type assertion to avoid TypeScript errors
         (apiParams as any).featured = apiParams.featured === true ? 1 : 0;
+        console.log('Featured parameter converted to:', (apiParams as any).featured);
     }
 
     return useQuery({
         queryKey: ['products', params],
         queryFn: async () => {
+            console.log('Fetching products with params:', apiParams);
             const result = await productService.getAll(apiParams);
             return result;
         },

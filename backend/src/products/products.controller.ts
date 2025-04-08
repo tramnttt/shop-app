@@ -21,11 +21,22 @@ export class ProductsController {
         @Query('maxPrice') maxPrice?: string
     ) {
         console.log('featured', featured);
+
+        // Convert featured string to boolean or number
+        let featuredValue = undefined;
+        if (featured !== undefined) {
+            if (featured === 'true' || featured === '1') {
+                featuredValue = true;
+            } else if (featured === 'false' || featured === '0') {
+                featuredValue = false;
+            }
+        }
+
         return this.productsService.findAll({
             page,
             limit,
             categoryId,
-            featured: featured,
+            featured: featuredValue,
             search,
             minPrice: minPrice ? +minPrice : undefined,
             maxPrice: maxPrice ? +maxPrice : undefined

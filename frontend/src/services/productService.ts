@@ -66,6 +66,7 @@ export const productService = {
         maxPrice?: number;
     }): Promise<{ products: Product[]; totalCount: number; currentPage: number; totalPages: number }> => {
         try {
+            console.log('ProductService.getAll called with params:', params);
             const response = await axiosInstance.get('/products', { params });
             return response.data;
         } catch (error) {

@@ -530,7 +530,7 @@ const HomePage: React.FC = () => {
                                             height: 260,
                                             display: 'flex',
                                             alignItems: 'flex-end',
-                                            backgroundImage: `url(https://via.placeholder.com/300x200?text=${encodeURIComponent(category.name)})`,
+                                            backgroundImage: `url(${formatImageUrl(category.image_url || undefined)})`,
                                             backgroundSize: 'cover',
                                             backgroundPosition: 'center',
                                             color: 'white',
@@ -548,48 +548,31 @@ const HomePage: React.FC = () => {
                                                 left: 0,
                                                 width: '100%',
                                                 height: '100%',
-                                                background: 'linear-gradient(0deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.1) 100%)',
-                                                zIndex: 1,
-                                                transition: 'opacity 0.4s ease'
+                                                background: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.7) 100%)',
+                                                zIndex: 1
                                             },
                                             '&:hover': {
-                                                transform: 'translateY(-6px)',
-                                                boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-                                                '&::before': {
-                                                    opacity: 0.8
-                                                }
+                                                transform: 'translateY(-10px)',
+                                                boxShadow: '0 15px 40px rgba(0,0,0,0.2)'
                                             }
                                         }}
                                     >
-                                        <Box 
-                                            sx={{ 
+                                        <Box
+                                            sx={{
+                                                p: 3,
                                                 position: 'relative',
                                                 zIndex: 2,
-                                                p: 3,
                                                 width: '100%'
                                             }}
                                         >
-                                            <Typography 
-                                                variant="h5" 
-                                                component="h3" 
-                                                sx={{ 
-                                                    fontWeight: 700,
-                                                    mb: 1,
-                                                    textShadow: '2px 2px 4px rgba(0,0,0,0.5)'
-                                                }}
-                                            >
+                                            <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>
                                                 {category.name}
                                             </Typography>
-                                            <Box sx={{ 
-                                                display: 'flex', 
-                                                alignItems: 'center',
-                                                opacity: 0.9
-                                            }}>
-                                                <Typography variant="body2" sx={{ mr: 1 }}>
-                                                    Explore Collection
+                                            {category.description && (
+                                                <Typography variant="body2" sx={{ mt: 1, opacity: 0.9 }}>
+                                                    {category.description}
                                                 </Typography>
-                                                <ArrowForwardIcon fontSize="small" />
-                                            </Box>
+                                            )}
                                         </Box>
                                     </Card>
                                 </Grid>
